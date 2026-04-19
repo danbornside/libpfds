@@ -1,0 +1,121 @@
+/* This file is part of libpfds, Persistent Functional Data Structures in C.
+ *
+ * libpfds is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software
+ * Foundation, either version 3 of the License, or (at your option) any later
+ * version.
+ *
+ * libpfds is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+ * details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * libpfds. If not, see <https://www.gnu.org/licenses/>.
+ */
+
+#define PFDS_INTERNAL
+
+#include "pfds.h"
+
+pfds_ordering Double_cmp(pfds_ordered *l, pfds_ordered *r) {
+    double ll = ((pfds_Double*) l)->value;
+    double rr = ((pfds_Double*) r)->value;
+    // TODO: NaNs are not handled at all.
+    if (ll < rr) {
+        return PFDS_LT;
+    } else if (ll > rr) {
+        return PFDS_GT;
+    } else {
+        return PFDS_EQ;
+    }
+
+}
+static pfds_orderedvtable Double_orderingvtable = {
+    .cmp = &Double_cmp
+};
+
+void Double_debugfputs(FILE* stream, pfds_object* self_obj) {
+    pfds_Double* self = (pfds_Double*) self_obj;
+    fprintf(stream, "%f", self->value);
+}
+
+const pfds_objectvtable pfds_Double_vtable = {
+    .typename = "Double",
+    .debugfputs = Double_debugfputs,
+    .ordering = &Double_orderingvtable,
+};
+
+extern pfds_Double* pfds_Double_new(double value) {
+    pfds_Double* self = (pfds_Double*) pfds_object_new(sizeof(pfds_Double), &pfds_Double_vtable);
+    self->value = value;
+    return self;
+}
+extern double pfds_Double_get(pfds_Double* self) {
+    return self->value;
+}
+
+pfds_ordering UInt64_cmp(pfds_ordered *l, pfds_ordered *r) {
+    unsigned long ll = ((pfds_UInt64*) l)->value;
+    unsigned long rr = ((pfds_UInt64*) r)->value;
+    // TODO: NaNs are not handled at all.
+    if (ll < rr) {
+        return PFDS_LT;
+    } else if (ll > rr) {
+        return PFDS_GT;
+    } else {
+        return PFDS_EQ;
+    }
+
+}
+static pfds_orderedvtable UInt64_orderingvtable = {
+    .cmp = &UInt64_cmp
+};
+
+void UInt64_debugfputs(FILE* stream, pfds_object* self_obj) {
+    pfds_UInt64* self = (pfds_UInt64*) self_obj;
+    fprintf(stream, "%lu", self->value);
+}
+
+const pfds_objectvtable pfds_UInt64_vtable = {
+    .typename = "UInt64",
+    .debugfputs = UInt64_debugfputs,
+    .ordering = &UInt64_orderingvtable,
+};
+
+extern pfds_UInt64* pfds_UInt64_new(unsigned long value) {
+    pfds_UInt64* self = (pfds_UInt64*) pfds_object_new(sizeof(pfds_UInt64), &pfds_UInt64_vtable);
+    self->value = value;
+    return self;
+}
+extern unsigned long pfds_UInt64_get(pfds_UInt64* self) {
+    return self->value;
+}
+
+extern pfds_UInt64* pfds_UInt64_zero(void) {
+    return pfds_UInt64_new(0);
+}
+extern pfds_UInt64* pfds_UInt64_add(pfds_UInt64* l, pfds_UInt64* r) {
+    unsigned long lr = l->value + r->value;
+    pfds_release(l);
+    pfds_release(r);
+    return pfds_UInt64_new(lr);
+}
+extern pfds_UInt64* pfds_UInt64_sum(size_t n, pfds_UInt64* xs[]) {
+    unsigned long sum = 0;
+    for(size_t i = 0; i < n ; i++) {
+        sum += xs[i]->value;
+        pfds_release(xs[i]);
+    }
+    return pfds_UInt64_new(sum);
+}
+
+
+pfds_catenablevtable pfds_catenable_sum = {
+    .mempty = (pfds_object* (*)(void))
+        pfds_UInt64_zero,
+    .mappend = (pfds_object* (*)(pfds_object*, pfds_object*))
+        pfds_UInt64_add,
+    .concat = (pfds_object* (*)(size_t, pfds_object**))
+        pfds_UInt64_sum,
+};

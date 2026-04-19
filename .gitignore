@@ -1,0 +1,14 @@
+*.a
+*.so
+*.o
+*.d
+
+*.gcov
+*.gcno
+*.gcda
+
+vgcore.*
+
+test_pfds
+test_splitmix
+.ipynb_checkpoints

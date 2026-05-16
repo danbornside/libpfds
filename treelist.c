@@ -21,12 +21,6 @@
 #include "pfds.h"
 
 
-#define pfds_retain_array(n, elts) { for (int retainElts##__LINE__ = 0; retainElts##__LINE__ < n ; ++retainElts##__LINE__) \
-    pfds_retain((elts)[retainElts##__LINE__]); }
-
-#define pfds_release_array(n, elts) { for (int retainElts##__LINE__ = 0; retainElts##__LINE__ < n ; ++retainElts##__LINE__) \
-    pfds_release((elts)[retainElts##__LINE__]); }
-
 // todo/plan on this
 //
 // FingerTree: the completely generic finger tree implementation.  get this working, robust, and complete first
@@ -1256,11 +1250,11 @@ extern pfds_ordering pfds_TreeList_cmp (pfds_TreeList* l, pfds_TreeList* r) {
         } else if (ll->tag == FINGERTREE_EMPTY && rr->tag != FINGERTREE_EMPTY) {
             pfds_release(ll);
             pfds_release(rr);
-            return PFDS_GT;
+            return PFDS_LT;
         } else if (ll->tag != FINGERTREE_EMPTY && rr->tag == FINGERTREE_EMPTY) {
             pfds_release(ll);
             pfds_release(rr);
-            return PFDS_LT;
+            return PFDS_GT;
         } else {
             pfds_object* lHead;
             assert(FingerTree_popFront(&lHead, &ll, cat, mm, ll));
@@ -1280,45 +1274,14 @@ extern pfds_ordering pfds_TreeList_cmp (pfds_TreeList* l, pfds_TreeList* r) {
     }
 }
 
-//     while(true) {
-//         pfds_object* lHead;
-//         pfds_object* rHead;
-//         bool llNext = FingerTree_popFront(
-//                 &lHead, &ll,
-//                 &pfds_catenable_sum, measure_TreeList_size,
-//                 ll);
-//         bool rrNext = FingerTree_popFront(
-//                 &rHead, &rr,
-//                 &pfds_catenable_sum, measure_TreeList_size,
-//                 rr);
-//         if (!rrNext && !llNext) {
-//             return PFDS_EQ;
-//         } else if (llNext && !rrNext) {
-//             pfds_release(lHead);
-//             pfds_release(ll);
-//             return PFDS_GT;
-//         } else if (rrNext && !llNext) {
-//             pfds_release(rHead);
-//             pfds_release(rr);
-//             return PFDS_LT;
-//         } else { //  if (llNext && rrNext) {
-//             int cmp = pfds_cmp(lHead, rHead);
-//             pfds_release(lHead);
-//             pfds_release(rHead);
-//             if (cmp != 0) {
-//                 pfds_release(ll);
-//                 pfds_release(rr);
-//                 return cmp;
-//             }
-//         }
-//     }
-// }
-
 const pfds_orderedvtable TreeList_ordered = {
     .cmp = (pfds_ordering (*)(pfds_ordered*, pfds_ordered*))
         pfds_TreeList_cmp,
 };
 
+extern pfds_TreeList* pfds_TreeList_singleton(pfds_object* x) {
+    return TreeList_new(FingerTree_single(x));
+}
 
 /** construct a new sequence of the selected type from an array of the given objects.
  * the pfds_sequence_fromArray() global function returns the default implementation.
@@ -1464,6 +1427,8 @@ const pfds_sequencevtable TreeList_sequence = {
     .catenable = &TreeList_catenable,
     .fromArray = (pfds_sequence* (*)(size_t, pfds_object**))
         pfds_TreeList_fromArray,
+    .singleton = (pfds_sequence* (*)(pfds_object*))
+        pfds_TreeList_singleton,
 
     .popFront = pfds_sequence_defaultPopFront,
     .popBack = pfds_sequence_defaultPopBack,
@@ -1475,6 +1440,11 @@ const pfds_sequencevtable TreeList_sequence = {
         pfds_sequence_defaultReduceRight,
     .reverse = (pfds_sequence* (*)(pfds_sequence*))
         pfds_sequence_defaultReverse,
+
+    .insertBefore = pfds_sequence_defaultInsertBefore,
+    .insertAfter = pfds_sequence_defaultInsertAfter,
+    .updateAt = pfds_sequence_defaultUpdateAt,
+    .deleteAt = pfds_sequence_defaultDeleteAt,
 
     .isEmpty = (bool (*)(pfds_sequence*))
         pfds_TreeList_isEmpty,

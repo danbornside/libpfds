@@ -16,6 +16,7 @@
 
 #define PFDS_INTERNAL
 
+#include <assert.h>
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
@@ -281,6 +282,23 @@ extern bool pfds_sequence_popBack(pfds_sequence** init, pfds_object** last, pfds
     return self->object.vtable->sequence->popBack(init, last, self);
 }
 
+extern pfds_sequence* pfds_sequence_deleteAt(pfds_sequence* self, size_t n) {
+    GUARD_SEQUENCE_METHOD(self, deleteAt);
+    return self->object.vtable->sequence->deleteAt(self, n);
+}
+extern pfds_sequence* pfds_sequence_insertBefore(pfds_sequence* self, size_t n, pfds_object* x) {
+    GUARD_SEQUENCE_METHOD(self, insertBefore);
+    return self->object.vtable->sequence->insertBefore(self, n, x);
+}
+extern pfds_sequence* pfds_sequence_insertAfter(pfds_sequence* self, size_t n, pfds_object* x) {
+    GUARD_SEQUENCE_METHOD(self, insertAfter);
+    return self->object.vtable->sequence->insertAfter(self, n, x);
+}
+extern pfds_sequence* pfds_sequence_updateAt(pfds_sequence* self, size_t n, pfds_object* x) {
+    GUARD_SEQUENCE_METHOD(self, updateAt);
+    return self->object.vtable->sequence->updateAt(self, n, x);
+}
+
 extern bool pfds_sequence_defaultPopFront(pfds_object** head, pfds_sequence** tail, pfds_sequence* self) {
     return pfds_sequence_split(NULL, head, tail, self, 0);
 }
@@ -289,6 +307,48 @@ extern bool pfds_sequence_defaultPopBack(pfds_sequence** init, pfds_object** las
     return pfds_sequence_split(init, last, NULL, self, pfds_sequence_size(self) - 1);
 }
 
+extern pfds_sequence* pfds_sequence_defaultInsertBefore(pfds_sequence* self, size_t n, pfds_object* x) {
+    if (n == 0) {
+        return pfds_sequence_pushFront(x, self);
+    } else {
+        size_t mySize = pfds_sequence_size(self);
+        if (n == mySize) {
+            return pfds_sequence_pushBack(self, x);
+        } else if (n > mySize) {
+            panic("list index out of bounds");
+        } else {
+            const pfds_sequencevtable* dict = self->object.vtable->sequence;
+
+            pfds_sequence* init;
+            pfds_object* link[2];
+            link[0] = x;
+            pfds_sequence* tail;
+            assert(pfds_sequence_split(&init, &link[1], &tail, self, n));
+            pfds_sequence* links = dict->fromArray(2, link);
+
+            pfds_sequence* selves[3] = { init, links, tail };
+
+            return (pfds_sequence*) dict->catenable->concat(3, (pfds_object**) selves);
+        }
+    }
+}
+extern pfds_sequence* pfds_sequence_defaultUpdateAt(pfds_sequence* self, size_t n, pfds_object* x) {
+    size_t mySize = pfds_sequence_size(self);
+    if (n > mySize) {
+        panic("list index out of bounds");
+    } else {
+        const pfds_sequencevtable* dict = self->object.vtable->sequence;
+
+        pfds_sequence* init;
+        pfds_sequence* tail;
+        assert(pfds_sequence_split(&init, NULL, &tail, self, n));
+
+        // pfds_sequence* links = ;
+        pfds_sequence* selves[3] = { init, dict->singleton(x), tail };
+
+        return (pfds_sequence*) dict->catenable->concat(3, (pfds_object**) selves);
+    }
+}
 
 extern void pfds_sequence_defaultDebugfputs (FILE* stream, pfds_sequence* self) {
     bool printedBrace = false;
@@ -315,4 +375,22 @@ extern pfds_sequence* pfds_sequence_defaultReverse(pfds_sequence* self) {
 
 extern pfds_sequence* pfds_sequence_mappend(pfds_sequence* l, pfds_sequence* r) {
     return (pfds_sequence*) pfds_object_mappend((pfds_object*) l, (pfds_object*) r);
+}
+
+
+extern pfds_sequence* pfds_sequence_defaultDeleteAt(pfds_sequence* self, size_t n) {
+    pfds_sequence* init;
+    pfds_object* link;
+    pfds_sequence* tail;
+    bool res = pfds_sequence_split(&init, &link, &tail, self, n);
+    if (res) {
+        pfds_release(link);
+        return pfds_sequence_mappend(init, tail);
+    } else {
+        return NULL;
+    }
+}
+
+extern pfds_sequence* pfds_sequence_defaultInsertAfter(pfds_sequence* self, size_t n, pfds_object* x) {
+    return pfds_sequence_insertBefore(self, n+1, x);
 }

@@ -134,6 +134,14 @@ void pfds_object_release(pfds_object* self);
 
 #endif
 
+#define pfds_retain_array(n, elts) { for (int retainElts##__LINE__ = 0; retainElts##__LINE__ < n ; ++retainElts##__LINE__) \
+    pfds_retain((elts)[retainElts##__LINE__]); }
+
+#define pfds_release_array(n, elts) { for (int retainElts##__LINE__ = 0; retainElts##__LINE__ < n ; ++retainElts##__LINE__) \
+    pfds_release((elts)[retainElts##__LINE__]); }
+
+
+
 
 typedef struct pfds_orderedvtable pfds_orderedvtable;
 typedef struct pfds_objectvtable pfds_objectvtable;
@@ -474,6 +482,8 @@ struct pfds_LinkedList
  */
 pfds_LinkedList* pfds_LinkedList_empty();
 
+pfds_LinkedList* pfds_LinkedList_singleton(pfds_object* x);
+
 /** construct a new linked list by prepending a given element to a given list.
  *
  * this is the conventional way of building up LinkedList.
@@ -489,13 +499,19 @@ struct pfds_sequencevtable {
     const pfds_catenablevtable *catenable;
 
     /** construct a new sequence of the selected type from an array of the given objects.
-     * the pfds_sequence_fromArray() global function returns the default implementation.
      *
      * \param n
      * \param xs
      * \invariant give(return) take(xs[0..n])
      */
     pfds_sequence* (*fromArray)(size_t, pfds_object**);
+
+    /** construct a new sequence of one element
+     *
+     * \param x
+     * \invariant give(return) take(x)
+     */
+    pfds_sequence* (*singleton)(pfds_object*);
 
     /** test if a sequence has elements
      *
@@ -572,6 +588,49 @@ struct pfds_sequencevtable {
      *
      */
     pfds_object* (*get)(pfds_sequence* self, size_t n);
+
+    /** add an element x in position n.
+     *
+     * \param self
+     * \param n
+     * \param x
+     * \returns a copy of the sequence with the element added at the requested location.
+     * \invariant give(return) take(self) (take x)
+     *
+     */
+    pfds_sequence* (*insertBefore)(pfds_sequence* self, size_t n, pfds_object* x);
+
+    /** add an element x immediately after the element in position n.
+     *
+     * \param self
+     * \param n
+     * \param x
+     * \returns a copy of the sequence with the element added at the requested location.
+     * \invariant give(return) take(self) (take x)
+     *
+     */
+    pfds_sequence* (*insertAfter)(pfds_sequence* self, size_t n, pfds_object* x);
+
+    /** replace the element in position n by x.
+     *
+     * \param self
+     * \param n
+     * \param x
+     * \returns a copy of the sequence with the element added at the requested location.
+     * \invariant give(return) take(self) (take x)
+     *
+     */
+    pfds_sequence* (*updateAt)(pfds_sequence* self, size_t n, pfds_object* x);
+
+    /** remove the element at position n.
+     *
+     * \param self
+     * \param n
+     * \returns a copy of the sequence with the element added at the requested location.
+     * \invariant give(return) take(self)
+     *
+     */
+    pfds_sequence* (*deleteAt)(pfds_sequence* self, size_t n);
 
     /** return the first element or NULL if the container is empty
      *
@@ -768,6 +827,74 @@ extern pfds_String* pfds_String_empty(void);
  */
 pfds_sequence* pfds_sequence_mappend(pfds_sequence* l, pfds_sequence* r);
 
+/** add an element x in position n.
+ *
+ * \param self
+ * \param n
+ * \param x
+ * \returns a copy of the sequence with the element added at the requested location.
+ * \invariant give(return) take(self) (take x)
+ *
+ */
+pfds_sequence* pfds_sequence_insertBefore(pfds_sequence* self, size_t n, pfds_object* x);
+
+pfds_sequence* pfds_sequence_insertAfter(pfds_sequence* self, size_t n, pfds_object* x);
+
+pfds_sequence* pfds_sequence_updateAt(pfds_sequence* self, size_t n, pfds_object* x);
+
+/** convenience implementation of insertBefore based on split and concat
+ *
+ * \param self
+ * \param n
+ * \param x
+ * \returns a copy of the sequence with the element added at the requested location.
+ * \invariant give(return) take(self) (take x)
+ *
+ */
+pfds_sequence* pfds_sequence_defaultInsertBefore(pfds_sequence* self, size_t n, pfds_object* x);
+
+/** convenience implementation of insertAfter based on insertBefore
+ *
+ * \param self
+ * \param n
+ * \param x
+ * \returns a copy of the sequence with the element added at the requested location.
+ * \invariant give(return) take(self) (take x)
+ *
+ */
+pfds_sequence* pfds_sequence_defaultInsertAfter(pfds_sequence* self, size_t n, pfds_object* x);
+
+/** remove the element at position n.
+ *
+ * \param self
+ * \param n
+ * \returns a copy of the sequence with the element added at the requested location.
+ * \invariant give(return) take(self)
+ *
+ */
+pfds_sequence* pfds_sequence_deleteAt(pfds_sequence* self, size_t n);
+
+/** convenience implementation of deleteAt based on split and mappend
+ *
+ * \param self
+ * \param n
+ * \returns a copy of the sequence with the element added at the requested location.
+ * \invariant give(return) take(self)
+ *
+ */
+pfds_sequence* pfds_sequence_defaultDeleteAt(pfds_sequence* self, size_t n);
+
+/** convenience implementation of updateAt based on split and concat
+ *
+ * \param self
+ * \param n
+ * \param x
+ * \returns a copy of the sequence with the element added at the requested location.
+ * \invariant give(return) take(self) (take x)
+ *
+ */
+pfds_sequence* pfds_sequence_defaultUpdateAt(pfds_sequence* self, size_t n, pfds_object* x);
+
 #if defined (PFDS_GC_DEBUGREFCOUNT) || defined (PFDS_GC_REFCOUNT)
 struct pfds_gcinfo {
     size_t births;
@@ -781,5 +908,7 @@ struct pfds_gcinfo pfds_getgcinfo(void);
 typedef struct pfds_TreeList pfds_TreeList;
 pfds_TreeList* pfds_TreeList_fromArray(size_t n, pfds_object** xs);
 void pfds_TreeList_debugfputs(FILE* stream, pfds_TreeList* self);
+extern pfds_TreeList* pfds_TreeList_singleton(pfds_object* x);
+extern pfds_TreeList* pfds_TreeList_mempty(void);
 
 #endif

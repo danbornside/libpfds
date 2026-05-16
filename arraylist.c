@@ -20,12 +20,16 @@
 #include "pfds.h"
 
 pfds_ArrayList* pfds_ArrayList_new(size_t size, pfds_object* elements[], bool owner);
+pfds_ArrayList* ArrayList_insertBefore(pfds_ArrayList* self, size_t n, pfds_object* x);
+pfds_ArrayList* ArrayList_deleteAt(pfds_ArrayList* self, size_t n);
+pfds_ArrayList* ArrayList_updateAt(pfds_ArrayList* self, size_t n, pfds_object* x);
 
 extern pfds_ArrayList* pfds_ArrayList_fromArray(size_t size, pfds_object** elements) {
     pfds_object** myElements = (pfds_object**) calloc(sizeof(pfds_object*), size);
     memcpy(myElements, elements, sizeof(pfds_object*)*size);
     return pfds_ArrayList_new(size, myElements, true);
 }
+
 
 pfds_ArrayList* pfds_ArrayList_concat(size_t n, pfds_ArrayList** selves) {
     size_t size = 0;
@@ -207,8 +211,18 @@ static pfds_catenablevtable ArrayList_catenablevtable = {
 static pfds_sequencevtable ArrayList_sequencevtable = {
     .catenable = &ArrayList_catenablevtable,
     .fromArray = (pfds_sequence* (*)(size_t, pfds_object**)) pfds_ArrayList_fromArray,
+    .singleton = (pfds_sequence* (*)(pfds_object*))
+        pfds_ArrayList_singleton,
     .isEmpty = pfds_ArrayList_isEmpty,
     .size = (size_t (*)(pfds_sequence*)) pfds_ArrayList_size,
+
+    .insertBefore = (pfds_sequence* (*)(pfds_sequence*,size_t,pfds_object*))
+        ArrayList_insertBefore,
+    .insertAfter = pfds_sequence_defaultInsertAfter,
+    .updateAt = (pfds_sequence* (*)(pfds_sequence*,size_t,pfds_object*))
+        ArrayList_updateAt,
+    .deleteAt = (pfds_sequence* (*)(pfds_sequence*,size_t))
+        ArrayList_deleteAt,
 
     .popFront = pfds_sequence_defaultPopFront,
     .popBack = pfds_sequence_defaultPopBack,
@@ -265,6 +279,104 @@ extern pfds_ArrayList* pfds_ArrayList_singleton(pfds_object* elem) {
     pfds_object** elems = (pfds_object**) calloc(sizeof(pfds_object*), 1);
     elems[0] = elem;
     return pfds_ArrayList_new(1, elems, true);
+}
+
+/** add an element x in position n.
+ *
+ * \param self
+ * \param n
+ * \param x
+ * \returns a copy of the sequence with the element added at the requested location.
+ * \invariant give(return) take(self) (take x)
+ *
+ */
+pfds_ArrayList* ArrayList_insertBefore(pfds_ArrayList* self, size_t n, pfds_object* x) {
+    if (n > self->size) {
+        panic("ArrayList index out of bounds");
+    }
+
+    size_t size = self->size + 1;
+
+    pfds_object** elems = (pfds_object**) calloc(sizeof(pfds_object*), size);
+    int i;
+    for (i = 0; i < n; i++) {
+        elems[i] = self->elements[i];
+        pfds_retain(elems[i]);
+    }
+    elems[n] = x;
+    i++;
+    for (; i < size; i++) {
+        elems[i] = self->elements[i - 1];
+        pfds_retain(elems[i]);
+    }
+
+    pfds_release(self);
+
+    return pfds_ArrayList_new(size, elems, true);
+}
+
+/** replace an element x in position n.
+ *
+ * \param self
+ * \param n
+ * \param x
+ * \returns a copy of the sequence with the element added at the requested location.
+ * \invariant give(return) take(self) (take x)
+ *
+ */
+pfds_ArrayList* ArrayList_updateAt(pfds_ArrayList* self, size_t n, pfds_object* x) {
+    if (n >= self->size) {
+        panic("ArrayList index out of bounds");
+    }
+
+    size_t size = self->size;
+
+    pfds_object** elems = (pfds_object**) calloc(sizeof(pfds_object*), size);
+    int i;
+    for (i = 0; i < n; i++) {
+        elems[i] = self->elements[i];
+        pfds_retain(elems[i]);
+    }
+    elems[n] = x;
+    i++;
+    for (; i < size; i++) {
+        elems[i] = self->elements[i];
+        pfds_retain(elems[i]);
+    }
+
+    pfds_release(self);
+
+    return pfds_ArrayList_new(size, elems, true);
+}
+/** delete an element x in position n.
+ *
+ * \param self
+ * \param n
+ * \returns a copy of the sequence with the element added at the requested location.
+ * \invariant give(return) take(self) (take x)
+ *
+ */
+pfds_ArrayList* ArrayList_deleteAt(pfds_ArrayList* self, size_t n) {
+    if (n >= self->size) {
+        panic("ArrayList index out of bounds");
+    }
+
+    size_t size = self->size - 1;
+
+    pfds_object** elems = (pfds_object**) calloc(sizeof(pfds_object*), size);
+    int i;
+    for (i = 0; i < n; i++) {
+        elems[i] = self->elements[i];
+        pfds_retain(elems[i]);
+    }
+    for (; i < size; i++) {
+        elems[i] = self->elements[i + 1];
+        pfds_retain(elems[i]);
+    }
+
+    pfds_release(self);
+
+    return pfds_ArrayList_new(size, elems, true);
 }
 
 extern pfds_ArrayList* pfds_ArrayList_mappend(pfds_ArrayList* l, pfds_ArrayList* r) {

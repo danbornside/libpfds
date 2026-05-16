@@ -174,6 +174,116 @@ pfds_LinkedList* LinkedList_fromArray(size_t n, pfds_object** elements) {
     return self;
 }
 
+pfds_LinkedList* pfds_LinkedList_singleton(pfds_object* x) {
+    return pfds_LinkedList_pushFront(x, pfds_LinkedList_empty());
+}
+pfds_LinkedList* LinkedList_insertBefore(pfds_LinkedList* self, size_t pos, pfds_object* x) {
+    if (pos > self->size) {
+        panic("LinkedList index out of bounds");
+    }
+
+    size_t size = self->size + 1;
+    pfds_LinkedList* result = pfds_LinkedList_empty();
+    pfds_LinkedList* current = result;
+
+    while (true) {
+        current->size = size;
+        if (pos == 0) {
+            current->head = x;
+            current->tail = self;
+            return result;
+        } else {
+            pfds_retain(self->head);
+            pfds_retain(self->tail);
+            current->head = self->head;
+            current->tail = pfds_LinkedList_empty();
+
+            current = current->tail;
+            size--;
+            pos--;
+            pfds_LinkedList* tail = self->tail;
+            pfds_release(self);
+            self = tail;
+        }
+    }
+}
+
+pfds_LinkedList* LinkedList_updateAt(pfds_LinkedList* self, size_t pos, pfds_object* x) {
+    if (pos >= self->size) {
+        panic("LinkedList index out of bounds");
+    }
+
+    size_t size = self->size;
+    pfds_LinkedList* result = pfds_LinkedList_empty();
+    pfds_LinkedList* current = result;
+
+    while (true) {
+        current->size = size;
+        if (pos == 0) {
+            current->head = x;
+            assert(size >= 1);
+            current->tail = self->tail;
+            if (self->tail != NULL) {
+                pfds_retain(current->tail);
+            }
+            pfds_release(self);
+            return result;
+        } else {
+            pfds_retain(self->head);
+            pfds_retain(self->tail);
+            current->head = self->head;
+            current->tail = pfds_LinkedList_empty();
+
+            current = current->tail;
+            size--;
+            pos--;
+            pfds_LinkedList* tail = self->tail;
+            pfds_release(self);
+            self = tail;
+        }
+    }
+}
+pfds_LinkedList* LinkedList_deleteAt(pfds_LinkedList* self, size_t pos) {
+
+    size_t size = self->size - 1;
+
+    if (pos >= self->size) {
+        panic("LinkedList index out of bounds");
+    }
+
+    if (pos == 0) {
+        pfds_LinkedList* result = self->tail;
+        pfds_retain(result);
+        pfds_release(self);
+        return result;
+    }
+
+    pfds_LinkedList* result = pfds_LinkedList_empty();
+    pfds_LinkedList* current = result;
+
+    while (true) {
+        current->head = self->head;
+        pfds_retain(current->head);
+        current->size = size;
+
+        if (pos == 1) {
+            current->tail = self->tail->tail;
+            pfds_retain(current->tail);
+            pfds_release(self);
+            return result;
+        } else {
+            size--;
+            pos--;
+            current->tail = pfds_LinkedList_empty();
+            pfds_LinkedList* tail = self->tail;
+            pfds_retain(tail);
+            pfds_release(self);
+            self = tail;
+            current = current->tail;
+        }
+    }
+}
+
 pfds_object* LinkedList_reduceRight(binop op, void* ud, pfds_LinkedList* self, pfds_object* seed) {
     pfds_LinkedList* current = (pfds_LinkedList*) pfds_sequence_reverse((pfds_sequence*) self);
     self = current;
@@ -254,6 +364,15 @@ static pfds_sequencevtable LinkedList_sequence = {
         LinkedList_split,
     .get = (pfds_object* (*)(pfds_sequence*, size_t)) LinkedList_get,
     .size = (size_t (*)(pfds_sequence*)) LinkedList_size,
+    .singleton = (pfds_sequence* (*)(pfds_object*))
+        pfds_LinkedList_singleton,
+    .insertBefore = (pfds_sequence* (*)(pfds_sequence*, size_t, pfds_object*))
+        LinkedList_insertBefore,
+    .insertAfter = pfds_sequence_defaultInsertAfter,
+    .updateAt = (pfds_sequence* (*)(pfds_sequence*, size_t, pfds_object*))
+        LinkedList_updateAt,
+    .deleteAt = (pfds_sequence* (*)(pfds_sequence*, size_t))
+        LinkedList_deleteAt,
 };
 
 void LinkedList_destroy(pfds_LinkedList* self) {

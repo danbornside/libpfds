@@ -334,6 +334,14 @@ pfds_sequence* mkTestValue_sequence(const pfds_sequencevtable* vtable, int seed)
         case 3:
             pfds_Double* array3[3] = { pfds_Double_new(4), pfds_Double_new(5), pfds_Double_new(6)};
             return vtable->fromArray(3, (pfds_object**) array3);
+
+        case 4:
+            pfds_Double* array4[3] = { pfds_Double_new(4), pfds_Double_new(6), pfds_Double_new(7)};
+            return vtable->fromArray(3, (pfds_object**) array4);
+
+        case 5:
+            pfds_Double* array5[3] = { pfds_Double_new(2), pfds_Double_new(3), pfds_Double_new(5)};
+            return vtable->fromArray(3, (pfds_object**) array5);
         default:
             return (pfds_sequence*) vtable->catenable->mempty();
     }
@@ -466,7 +474,63 @@ void test_sequence(pfds_sequencevtable *vtable) {
 
     ASSERT_GC_COUNTS(gcCounts, 0, 0);
 
+    xs = mkTestValue_sequence(vtable, 3);
+    ASSERT_PFDS_STRING_EQUALS(xs, "[4.000000, 5.000000, 6.000000]");
 
+    xs = pfds_sequence_insertBefore(xs, 1, (pfds_object*) mkTestValue_Double(NULL, 7));
+    ASSERT_PFDS_STRING_EQUALS(xs, "[4.000000, 7.000000, 5.000000, 6.000000]");
+
+    xs = pfds_sequence_insertAfter(xs, 1, (pfds_object*) mkTestValue_Double(NULL, 8));
+    ASSERT_PFDS_STRING_EQUALS(xs, "[4.000000, 7.000000, 8.000000, 5.000000, 6.000000]");
+
+    xs = pfds_sequence_insertBefore(xs, 0, (pfds_object*) mkTestValue_Double(NULL, 9));
+    ASSERT_PFDS_STRING_EQUALS(xs, "[9.000000, 4.000000, 7.000000, 8.000000, 5.000000, 6.000000]");
+
+    xs = pfds_sequence_insertBefore(xs, 6, (pfds_object*) mkTestValue_Double(NULL, 10));
+    ASSERT_PFDS_STRING_EQUALS(xs,
+            "[9.000000, 4.000000, 7.000000, 8.000000, 5.000000, 6.000000, 10.000000]");
+
+    xs = pfds_sequence_updateAt(xs, 2, (pfds_object*) mkTestValue_Double(NULL, 11));
+    ASSERT_PFDS_STRING_EQUALS(xs,
+            "[9.000000, 4.000000, 11.000000, 8.000000, 5.000000, 6.000000, 10.000000]");
+
+    xs = pfds_sequence_deleteAt(xs, 2);
+    ASSERT_PFDS_STRING_EQUALS(xs,
+            "[9.000000, 4.000000, 8.000000, 5.000000, 6.000000, 10.000000]");
+    xs = pfds_sequence_deleteAt(xs, 0);
+    ASSERT_PFDS_STRING_EQUALS(xs, "[4.000000, 8.000000, 5.000000, 6.000000, 10.000000]");
+
+    xs = pfds_sequence_deleteAt(xs, 4);
+    ASSERT_PFDS_STRING_EQUALS(xs, "[4.000000, 8.000000, 5.000000, 6.000000]");
+
+    pfds_release(xs);
+    ASSERT_GC_COUNTS(gcCounts, 0, 0);
+
+    xs = mkTestValue_sequence(vtable, 1); // [1]
+    ys = mkTestValue_sequence(vtable, 2); // [2,3]
+
+    CU_ASSERT_EQUAL(pfds_cmp(xs, ys), PFDS_LT);
+    CU_ASSERT_EQUAL(pfds_cmp(ys, xs), PFDS_GT);
+
+    pfds_release(xs);
+    xs = mkTestValue_sequence(vtable, 5); // [2,3,5]
+    CU_ASSERT_EQUAL(pfds_cmp(xs, ys), PFDS_GT);
+    CU_ASSERT_EQUAL(pfds_cmp(ys, xs), PFDS_LT);
+    pfds_release(xs);
+
+    xs = mkTestValue_sequence(vtable, 2); // [2,3]
+    CU_ASSERT_EQUAL(pfds_cmp(xs, ys), PFDS_EQ);
+
+    pfds_release(xs);
+    pfds_release(ys);
+    ASSERT_GC_COUNTS(gcCounts, 0, 0);
+
+    xs = mkTestValue_sequence(vtable, 3); // [4,5,6]
+    ys = mkTestValue_sequence(vtable, 4); // [4,6,7]
+    CU_ASSERT_EQUAL(pfds_cmp(xs, ys), PFDS_LT);
+
+    pfds_release(xs);
+    pfds_release(ys);
     ASSERT_GC_COUNTS(gcCounts, 0, 0);
 }
 
@@ -518,8 +582,15 @@ void test_vtable(const pfds_objectvtable* vtable) {
 
         // sequence can be built from elements
         CU_ASSERT(vtable->sequence->fromArray != NULL);
+        CU_ASSERT(vtable->sequence->singleton != NULL);
 
         CU_ASSERT(vtable->sequence->isEmpty != NULL);
+
+        CU_ASSERT(vtable->sequence->insertBefore != NULL);
+        CU_ASSERT(vtable->sequence->insertAfter != NULL);
+        CU_ASSERT(vtable->sequence->updateAt != NULL);
+        CU_ASSERT(vtable->sequence->deleteAt != NULL);
+
 
         // all or none.
         CU_ASSERT(vtable->sequence->popFront != NULL);
@@ -862,6 +933,21 @@ void test_gc_sequence_fromArrayLoop(void* dictPtr) {
 
 }
 
+void test_gc_sequence_singleton(void* dictPtr) {
+    pfds_sequencevtable* dict = (pfds_sequencevtable*) dictPtr;
+
+    PREPARE_GC_COUNTS(gcCounts);
+
+    pfds_object* theDouble = (pfds_object*) mkTestValue_Double(NULL, 123);
+
+    pfds_sequence * xs = dict->singleton(theDouble);
+
+    ASSERT_ONE_REF(xs);
+
+    pfds_release(xs);
+
+    ASSERT_GC_COUNTS(gcCounts, 0, 0);
+}
 
 void test_gc_sequence_pushFront(void* dictPtr) {
     pfds_sequencevtable* dict = (pfds_sequencevtable*) dictPtr;
@@ -911,6 +997,62 @@ void test_gc_sequence_popFront(void* dictPtr) {
 
     ASSERT_ONE_REF(head);
     pfds_release(head);
+
+    ASSERT_GC_COUNTS(gcCounts, 0, 0);
+}
+
+void test_gc_sequence_insert(void* dictPtr) {
+    pfds_sequencevtable* dict = (pfds_sequencevtable*) dictPtr;
+
+    PREPARE_GC_COUNTS(gcCounts);
+
+    pfds_sequence* xs = pfds_sequence_insertBefore(
+            mkTestValue_sequence(dict, 3),
+            2,
+            (pfds_object*) mkTestValue_Double(NULL, 123));
+    CU_ASSERT_NOT_EQUAL(xs, NULL);
+    pfds_release(xs);
+
+    ASSERT_GC_COUNTS(gcCounts, 0, 0);
+}
+
+void test_gc_sequence_insertAfter(void* dictPtr) {
+    pfds_sequencevtable* dict = (pfds_sequencevtable*) dictPtr;
+
+    PREPARE_GC_COUNTS(gcCounts);
+
+    pfds_sequence* xs = pfds_sequence_insertAfter(
+            mkTestValue_sequence(dict, 3),
+            2,
+            (pfds_object*) mkTestValue_Double(NULL, 123));
+    CU_ASSERT_NOT_EQUAL(xs, NULL);
+    pfds_release(xs);
+
+    ASSERT_GC_COUNTS(gcCounts, 0, 0);
+}
+void test_gc_sequence_update(void* dictPtr) {
+    pfds_sequencevtable* dict = (pfds_sequencevtable*) dictPtr;
+
+    PREPARE_GC_COUNTS(gcCounts);
+
+    pfds_sequence* xs = pfds_sequence_updateAt(
+            mkTestValue_sequence(dict, 3),
+            2,
+            (pfds_object*) mkTestValue_Double(NULL, 123));
+    CU_ASSERT_NOT_EQUAL(xs, NULL);
+    pfds_release(xs);
+
+    ASSERT_GC_COUNTS(gcCounts, 0, 0);
+}
+
+void test_gc_sequence_delete(void* dictPtr) {
+    pfds_sequencevtable* dict = (pfds_sequencevtable*) dictPtr;
+
+    PREPARE_GC_COUNTS(gcCounts);
+
+    pfds_sequence* xs = pfds_sequence_deleteAt(mkTestValue_sequence(dict, 3), 2);
+    CU_ASSERT_NOT_EQUAL(xs, NULL);
+    pfds_release(xs);
 
     ASSERT_GC_COUNTS(gcCounts, 0, 0);
 }
@@ -1540,6 +1682,66 @@ void test_treelist_lookup_1 (void) {
     free(fixture);
 
 }
+void test_treelist_debugfprint (void) {
+    PREPARE_GC_COUNTS(gcCounts);
+    pfds_object* elements[50];
+    for (int i = 0 ; i < 50; i++) {
+        elements[i] = (pfds_object*) pfds_UInt64_new(i);
+    }
+
+    char* buf;
+    size_t size;
+    FILE* stream = open_memstream(&buf, &size);
+
+    pfds_TreeList* lst = pfds_TreeList_mempty();
+
+    pfds_TreeList_debugfputs(stream, lst);
+    pfds_release(lst);
+    fputs("\n", stream);
+
+    pfds_retain_array(1, elements);
+    lst = pfds_TreeList_singleton(elements[0]);
+    pfds_TreeList_debugfputs(stream, lst);
+    pfds_release(lst);
+    fputs("\n", stream);
+
+    pfds_retain_array(2, elements);
+    lst = pfds_TreeList_fromArray(2, elements);
+    pfds_TreeList_debugfputs(stream, lst);
+    pfds_release(lst);
+    fputs("\n", stream);
+
+    pfds_retain_array(6, elements);
+    lst = pfds_TreeList_fromArray(6, elements);
+    pfds_TreeList_debugfputs(stream, lst);
+    pfds_release(lst);
+    fputs("\n", stream);
+
+    lst = pfds_TreeList_fromArray(50, elements);
+    pfds_TreeList_debugfputs(stream, lst);
+    pfds_release(lst);
+    fputs("\n", stream);
+
+    fflush(stream);
+
+    CU_ASSERT_STRING_EQUAL( buf,
+        "TREELIST:{EMPTY}\n"
+        "TREELIST:{SINGLE(0)}\n"
+        "TREELIST:{DEEP(<m:2>, D1[0], EMPTY, D1[1])}\n"
+        "TREELIST:{DEEP(<m:6>, D1[0], SINGLE(N3[<m:3>, 1, 2, 3]), D2[4, 5])}\n"
+        "TREELIST:{DEEP(<m:50>, D1[0], DEEP(<m:45>, D1[N3[<m:3>, 1, 2, 3]], DEEP(<m:36>,"
+        " D1[N3[<m:9>, N3[<m:3>, 4, 5, 6], N3[<m:3>, 7, 8, 9], N3[<m:3>, 10, 11, 12]]],"
+        " EMPTY, D3[N3[<m:9>, N3[<m:3>, 13, 14, 15], N3[<m:3>, 16, 17, 18], N3[<m:3>, 19,"
+        " 20, 21]], N3[<m:9>, N3[<m:3>, 22, 23, 24], N3[<m:3>, 25, 26, 27], N3[<m:3>, 28,"
+        " 29, 30]], N3[<m:9>, N3[<m:3>, 31, 32, 33], N3[<m:3>, 34, 35, 36], N3[<m:3>, 37,"
+        " 38, 39]]]), D2[N3[<m:3>, 40, 41, 42], N3[<m:3>, 43, 44, 45]]), D4[46, 47, 48,"
+        " 49])}\n");
+
+
+    free(buf);
+    ASSERT_GC_COUNTS(gcCounts, 0, 0);
+
+}
 
 void test_treelist_lookup_2 (void) {
     const pfds_objectvtable *vtable = &pfds_TreeList_vtable;
@@ -1670,6 +1872,37 @@ void bench_fillPushFront(struct benchState *bs, pfds_objectvtable *vtable) {
 
 }
 
+void bench_shuffle(struct benchState *bs, pfds_objectvtable *vtable) {
+    pfds_object** fixture = (pfds_object**) calloc(sizeof(pfds_object*), bs->n);
+    for (size_t i = 0 ; i < bs->n ; i++) {
+        fixture[i] = (pfds_object*) pfds_Double_new(SplitMix64_nextDouble(&bs->gen));
+    }
+    pfds_sequence* xs0 = vtable->sequence->fromArray(bs->n, fixture);
+    free(fixture);
+
+    for (int iter = 0; iter < bs->iterations; iter++) {
+        pfds_sequence* xs = xs0; pfds_retain(xs);
+        bench_begin(bs, iter);
+
+        pfds_sequence* ys;
+        pfds_object* z;
+        pfds_sequence* ws;
+
+        for (int i = 0; i < 100 ; i++) {
+            size_t pos = SplitMix64_nextInt64Range(&bs->gen, 0, bs->n);
+            CU_ASSERT(pfds_sequence_split(&ys, &z, &ws, xs, pos));
+            xs = pfds_sequence_mappend(ws, pfds_sequence_pushFront(z, ys));
+        }
+
+        bench_end(bs, iter);
+        pfds_release(xs);
+    }
+
+    bench_teardown(bs);
+    pfds_release(xs0);
+
+}
+
 
 /** construct container of size n by pushing elements one at a time on the back */
 void bench_fillPushBack(struct benchState *bs, pfds_objectvtable *vtable) {
@@ -1793,39 +2026,20 @@ int main(int argc, char** argv)
 
     CU_initialize_registry();
 
-    struct testBenchmark testBenchmarks[] = {
-        CLASSY_BENCHMARK("lookup", pfds_ArrayList_vtable,   10, 10000, bench_lookup),
-        CLASSY_BENCHMARK("lookup", pfds_TreeList_vtable,   10, 10000, bench_lookup),
-        CLASSY_BENCHMARK("queueLeft", pfds_TreeList_vtable,   10, 10000, bench_queueLeft),
-        CLASSY_BENCHMARK("queueLeft", pfds_ArrayList_vtable,  10, 2000, bench_queueLeft),
-        CLASSY_BENCHMARK("queueLeft", pfds_LinkedList_vtable,   10, 1000, bench_queueLeft),
-        CLASSY_BENCHMARK("fillFromArray", pfds_TreeList_vtable,   10, 10000, bench_fillFromArray),
-        CLASSY_BENCHMARK("fillFromArray", pfds_LinkedList_vtable, 10, 10000, bench_fillFromArray),
-        CLASSY_BENCHMARK("fillFromArray", pfds_ArrayList_vtable,  100, 100000, bench_fillFromArray),
-        CLASSY_BENCHMARK("fillPushFront", pfds_TreeList_vtable, 10, 10000, bench_fillPushFront),
-        CLASSY_BENCHMARK("fillPushFront", pfds_LinkedList_vtable, 10, 10000, bench_fillPushFront),
-        CLASSY_BENCHMARK("fillPushFront", pfds_ArrayList_vtable, 10, 1000, bench_fillPushFront),
-        CLASSY_BENCHMARK("fillPushBack", pfds_TreeList_vtable, 10, 10000, bench_fillPushBack),
-        CLASSY_BENCHMARK("fillPushBack", pfds_LinkedList_vtable, 10, 500, bench_fillPushBack),
-        CLASSY_BENCHMARK("fillPushBack", pfds_ArrayList_vtable, 10, 1000, bench_fillPushBack),
-        { 0 },
-    };
-
-
-    CU_pSuite benchSuite = CU_add_suite("bench", 0, 0);
-    for (int i = 0 ; testBenchmarks[i].benchFn  ; i++) {
-        CU_add_test_with(
-                benchSuite,
-                ssprintf("%s/%s", testBenchmarks[i].name, testBenchmarks[i].typename).buf,
-                (CU_TestFunc1) test_run_one_benchmark,
-                &testBenchmarks[i]);
-    }
 
     CU_pSuite ccheckSuite = CU_add_suite("ccheck", 0, 0);
     CCHECK_add_prop_forAll(ccheckSuite, 10, test_assoc_int, 3, &genInt, &genInt, &genInt);
     // CCHECK_add_prop_forAll(suite, 10, test_lessthan_5, 1, &genInt);
 
-    CU_pSuite gcSuite = CU_add_suite("RefCounts", 0, 0);
+
+    CU_pSuite validatorSuite = CU_add_suite("typedefs", 0, 0);
+
+    CU_add_test_with(validatorSuite, "validate vtable/LinkedList", (CU_TestFunc1) test_vtable, (void*) &pfds_LinkedList_vtable);
+    CU_add_test_with(validatorSuite, "validate vtable/ArrayList", (CU_TestFunc1) test_vtable, (void*) &pfds_ArrayList_vtable);
+    CU_add_test_with(validatorSuite, "validate vtable/TreeList", (CU_TestFunc1) test_vtable, (void*) &pfds_TreeList_vtable);
+
+
+    CU_pSuite gcSuite = CU_add_suite("gc", 0, 0);
     CU_add_test(gcSuite, "new->release double", test_gc_new_release_double);
     CU_add_test(gcSuite, "new->release string", test_gc_new_release_string);
     CU_add_test(gcSuite, "new->release constString", test_gc_new_release_constString);
@@ -1871,6 +2085,7 @@ int main(int argc, char** argv)
         { .testFn = test_gc_sequence_fromArray, .desc = "fromArray/nonEmpty", },
         { .testFn = test_gc_sequence_fromArray2, .desc = "fromArray/dup", },
         { .testFn = test_gc_sequence_fromArrayLoop, .desc = "fromArray/loop", },
+        { .testFn = test_gc_sequence_singleton, .desc = "singleton", },
 
         { .testFn = test_gc_sequence_popFront_empty, .desc = "popFront/empty", },
         { .testFn = test_gc_sequence_popFront, .desc = "popFront/x1", },
@@ -1886,6 +2101,11 @@ int main(int argc, char** argv)
 
         { .testFn = test_gc_sequence_get, .desc = "get", },
         { .testFn = test_gc_sequence_getPastEnd, .desc = "get past end", },
+
+        { .testFn = test_gc_sequence_insert, .desc = "insertBefore", },
+        { .testFn = test_gc_sequence_insertAfter, .desc = "insertAfter", },
+        { .testFn = test_gc_sequence_update, .desc = "update", },
+        { .testFn = test_gc_sequence_delete, .desc = "delete", },
 
         { .testFn = test_gc_sequence_reduceLeft, .desc = "reduceLeft", },
         { .testFn = test_gc_sequence_reduceRight, .desc = "reduceRight", },
@@ -1925,7 +2145,9 @@ int main(int argc, char** argv)
     }
 
 
-    CU_pSuite propSuite = CU_add_suite("Properties", 0, 0);
+    // TODO: actual property testing, mkValue stuff should be a real generator,
+    // enhance ccheck until this is the easy way to write those tests.
+    CU_pSuite propSuite = CU_add_suite("properties", 0, 0);
 
     struct catenableInstance catenableInstance[] = {
         { .name = "String", .dict = pfds_String_vtable.catenable, .mkValue = (pfds_object* (*)(void*, int)) mkTestValue_String, .ud = 0},
@@ -1968,28 +2190,63 @@ int main(int argc, char** argv)
         }
     }
 
-    CU_pSuite suite = CU_add_suite("AddTestSuite", 0, 0);
+    CU_pSuite miscSuite = CU_add_suite("misc", 0, 0);
 
-    CU_add_test(suite, "TreeList/cmp/case1", test_treelist_cmp_1);
-    CU_add_test(suite, "TreeList/lookup/case1", test_treelist_lookup_1);
-    CU_add_test(suite, "TreeList/lookup/case2", test_treelist_lookup_2);
+    CU_add_test(miscSuite, "TreeList/cmp/case1", test_treelist_cmp_1);
+    CU_add_test(miscSuite, "TreeList/lookup/case1", test_treelist_lookup_1);
+    CU_add_test(miscSuite, "TreeList/lookup/case2", test_treelist_lookup_2);
+    CU_add_test(miscSuite, "TreeList/debugfprint", test_treelist_debugfprint);
 
 
-    CU_add_test_with(suite, "validate vtable/LinkedList", (CU_TestFunc1) test_vtable, (void*) &pfds_LinkedList_vtable);
-    CU_add_test_with(suite, "validate vtable/ArrayList", (CU_TestFunc1) test_vtable, (void*) &pfds_ArrayList_vtable);
-    CU_add_test_with(suite, "validate vtable/TreeList", (CU_TestFunc1) test_vtable, (void*) &pfds_TreeList_vtable);
+    CU_add_test(miscSuite, "test of pfds_String", test_String);
+    CU_add_test(miscSuite, "test of pfds_Double", test_Double);
+    CU_add_test(miscSuite, "test of pfds_ArrayList", test_ArrayList);
 
-    CU_add_test(suite, "test of pfds_String", test_String);
-    CU_add_test(suite, "test of pfds_Double", test_Double);
-    CU_add_test(suite, "test of pfds_ArrayList", test_ArrayList);
+    // CU_add_test(miscSuite, "test of catenable/String", test_catenable_String);
+    // CU_add_test(miscSuite, "test of catenable/Sum", test_catenable_sum);
+    CU_add_test_with(miscSuite, "test of sequence/ArrayList", (CU_TestFunc1) test_sequence, (void*) pfds_ArrayList_vtable.sequence);
+    CU_add_test_with(miscSuite, "test of sequence/LinkedList", (CU_TestFunc1) test_sequence, (void*) pfds_LinkedList_vtable.sequence);
+    CU_add_test_with(miscSuite, "test of sequence/TreeList", (CU_TestFunc1) test_sequence, (void*) pfds_TreeList_vtable.sequence);
 
-    // CU_add_test(suite, "test of catenable/String", test_catenable_String);
-    // CU_add_test(suite, "test of catenable/Sum", test_catenable_sum);
-    CU_add_test_with(suite, "test of sequence/ArrayList", (CU_TestFunc1) test_sequence, (void*) pfds_ArrayList_vtable.sequence);
-    CU_add_test_with(suite, "test of sequence/LinkedList", (CU_TestFunc1) test_sequence, (void*) pfds_LinkedList_vtable.sequence);
-    CU_add_test_with(suite, "test of sequence/TreeList", (CU_TestFunc1) test_sequence, (void*) pfds_TreeList_vtable.sequence);
+    CCHECK_add_prop(miscSuite, "test props imperatively", NULL, 10, imperative_prop, NULL);
 
-    CCHECK_add_prop(suite, "test props imperatively", NULL, 10, imperative_prop, NULL);
+
+    // benchmark values are chosen here to run very quickly in an ordinary run
+    // with the default size multiplier of 1.0, but also all finish in max a
+    // few seconds each with whatever options are specified in `make bench`.
+    // pathologically bad benchmarks should only be allowed to run just long
+    // enough to show that they are pathological in the benchmark graphs.
+    struct testBenchmark testBenchmarks[] = {
+        CLASSY_BENCHMARK("lookup", pfds_ArrayList_vtable,   10, 10000, bench_lookup),
+        CLASSY_BENCHMARK("lookup", pfds_TreeList_vtable,   10, 10000, bench_lookup),
+        CLASSY_BENCHMARK("queueLeft", pfds_TreeList_vtable,   10, 10000, bench_queueLeft),
+        CLASSY_BENCHMARK("queueLeft", pfds_ArrayList_vtable,  10, 2000, bench_queueLeft),
+        CLASSY_BENCHMARK("queueLeft", pfds_LinkedList_vtable,   10, 1000, bench_queueLeft),
+        CLASSY_BENCHMARK("fillFromArray", pfds_TreeList_vtable,   10, 10000, bench_fillFromArray),
+        CLASSY_BENCHMARK("fillFromArray", pfds_LinkedList_vtable, 10, 10000, bench_fillFromArray),
+        CLASSY_BENCHMARK("fillFromArray", pfds_ArrayList_vtable,  100, 100000, bench_fillFromArray),
+        CLASSY_BENCHMARK("fillPushFront", pfds_TreeList_vtable, 10, 10000, bench_fillPushFront),
+        CLASSY_BENCHMARK("fillPushFront", pfds_LinkedList_vtable, 10, 10000, bench_fillPushFront),
+        CLASSY_BENCHMARK("fillPushFront", pfds_ArrayList_vtable, 10, 1000, bench_fillPushFront),
+        CLASSY_BENCHMARK("fillPushBack", pfds_TreeList_vtable, 10, 10000, bench_fillPushBack),
+        CLASSY_BENCHMARK("fillPushBack", pfds_LinkedList_vtable, 10, 500, bench_fillPushBack),
+        CLASSY_BENCHMARK("fillPushBack", pfds_ArrayList_vtable, 10, 1000, bench_fillPushBack),
+        CLASSY_BENCHMARK("shuffle", pfds_ArrayList_vtable, 10, 1000, bench_shuffle),
+        CLASSY_BENCHMARK("shuffle", pfds_LinkedList_vtable, 10, 250, bench_shuffle),
+        CLASSY_BENCHMARK("shuffle", pfds_TreeList_vtable, 10, 10000, bench_shuffle),
+        { 0 },
+    };
+
+    CU_pSuite benchSuite = CU_add_suite("bench", 0, 0);
+    for (int i = 0 ; testBenchmarks[i].benchFn  ; i++) {
+        CU_add_test_with(
+                benchSuite,
+                ssprintf("%s/%s", testBenchmarks[i].name, testBenchmarks[i].typename).buf,
+                (CU_TestFunc1) test_run_one_benchmark,
+                &testBenchmarks[i]);
+    }
+
+
 
     struct arguments arguments = { 0 };
 

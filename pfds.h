@@ -45,6 +45,8 @@
 #ifndef PFDS_HEADER_INCLUDED
 #define PFDS_HEADER_INCLUDED
 
+#include "pfds/pfds-intl.h"
+
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -52,86 +54,6 @@
 
 #ifdef PFDS_INTERNAL
 #define panic(msg) { fprintf(stderr, "PANIC %s:%d\n\t%s\n", __FILE__, __LINE__, msg); abort(); }
-#endif
-
-typedef struct pfds_object pfds_object;
-
-// #define PFDS_GC_DEBUGREFCOUNT
-// #define PFDS_GC_NONE
-#if ! (defined (PFDS_GC_DEBUGREFCOUNT) || defined (PFDS_GC_NONE) || defined (PFDS_GC_REFCOUNT))
-# define PFDS_GC_REFCOUNT
-#endif
-
-#if defined (PFDS_GC_DEBUGREFCOUNT)
-#elif defined (PFDS_GC_REFCOUNT)
-#elif defined (PFDS_GC_NONE)
-#endif
-
-#if defined (PFDS_GC_DEBUGREFCOUNT)
-# define PFDS_GC_HEADER size_t retaincount; size_t releasecount; bool finalized;
-
-/** increase reference count of self by 1
- * \public \memberof pfds_object
- *
- * \param self
- * \invariant dup(self)
- */
-# define pfds_retain(self) pfds_object_retain((pfds_object*) self, __FILE__, __LINE__)
-/** increase reference count of self by 1
- * \public \memberof pfds_object
- *
- * \param self
- * \invariant drop(self)
- */
-# define pfds_release(self) pfds_object_release((pfds_object*) self, __FILE__, __LINE__)
-
-/** increase reference count of self by 1
- * \public \memberof pfds_object
- *
- * \param self
- * \param fn file name
- * \param ln line number
- * \invariant dup(self)
- */
-void pfds_object_retain(pfds_object* self, char* fn, int ln);
-
-/** decrese reference count of self by 1.  object will be freed if refcount is zero
- * \public \memberof pfds_object
- *
- * \param self
- * \param fn file name
- * \param ln line number
- * \invariant drop(self)
- */
-void pfds_object_release(pfds_object* self, char* fn, int ln);
-
-
-#elif defined (PFDS_GC_REFCOUNT)
-# define PFDS_GC_HEADER int refcount;
-# define pfds_retain(self) pfds_object_retain((pfds_object*) self)
-# define pfds_release(self) pfds_object_release((pfds_object*) self)
-
-/** increase reference count of self by 1
- * \public \memberof pfds_object
- *
- * \param self
- * \invariant dup(self)
- */
-void pfds_object_retain(pfds_object* self);
-
-/** increase reference count of self by 1
- * \public \memberof pfds_object
- *
- * \param self
- * \invariant drop(self)
- */
-void pfds_object_release(pfds_object* self);
-
-#elif defined (PFDS_GC_NONE)
-# define PFDS_GC_HEADER
-# define pfds_retain(self)
-# define pfds_release(self)
-
 #endif
 
 #define pfds_retain_array(n, elts) { for (int retainElts##__LINE__ = 0; retainElts##__LINE__ < n ; ++retainElts##__LINE__) \
@@ -895,15 +817,6 @@ pfds_sequence* pfds_sequence_defaultDeleteAt(pfds_sequence* self, size_t n);
  */
 pfds_sequence* pfds_sequence_defaultUpdateAt(pfds_sequence* self, size_t n, pfds_object* x);
 
-#if defined (PFDS_GC_DEBUGREFCOUNT) || defined (PFDS_GC_REFCOUNT)
-struct pfds_gcinfo {
-    size_t births;
-    size_t deaths;
-    size_t retaincount;
-    size_t releasecount;
-};
-struct pfds_gcinfo pfds_getgcinfo(void);
-#endif
 
 typedef struct pfds_TreeList pfds_TreeList;
 pfds_TreeList* pfds_TreeList_fromArray(size_t n, pfds_object** xs);

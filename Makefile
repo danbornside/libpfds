@@ -7,6 +7,12 @@ DEPFILES := $(SRCS:%.c=%.d)
 .PHONY: all
 all: libpfds.so libpfds.a
 
+pfds/pfds-intl.h : pfds/pfds-intl.h.sh config.inc.sh
+	bash $< > $@
+
+
+$(OBJS) : pfds/pfds-intl.h
+
 .PHONY: clean
 clean:
 	rm -f libpfds.so libpfds.a \

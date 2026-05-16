@@ -9,6 +9,7 @@
 
 vgcore.*
 
-test_pfds
-test_splitmix
+/test_pfds
+/test_splitmix
 .ipynb_checkpoints
+/pfds/pfds-intl.h

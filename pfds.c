@@ -16,11 +16,13 @@
 
 #define PFDS_INTERNAL
 
+#include "pfds.h"
+#include "pfds/pfds-object-intl.h"
+
 #include <assert.h>
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
-#include "pfds.h"
 
 #if defined (PFDS_GC_DEBUGREFCOUNT) || defined (PFDS_GC_REFCOUNT)
 static size_t global_births = 0;
@@ -172,13 +174,11 @@ extern pfds_object* pfds_object_mappend(pfds_object* l, pfds_object* r) {
     }
 }
 
-extern pfds_ordering pfds_ordered_cmp(pfds_ordered* l, pfds_ordered* r) {
-    const pfds_orderedvtable *vtable = (l && l->object.vtable) ? l->object.vtable->ordering : NULL;
+extern pfds_ordering pfds_object_cmp(pfds_object* l, pfds_object* r) {
+    const pfds_objectvtable *vtable = (l && l->vtable) ? l->vtable : NULL;
     if (vtable == NULL
             || vtable->cmp == NULL
-            || r == NULL
-            || r->object.vtable == NULL
-            || r->object.vtable->ordering != vtable
+            || r->vtable != vtable
        ) {
         panic("cmp on incompatible types");
     }

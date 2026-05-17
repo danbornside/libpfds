@@ -17,11 +17,23 @@
 #define PFDS_INTERNAL
 
 #include "pfds.h"
+#include "pfds/pfds-object-intl.h"
+#include "pfds/pfds-num.h"
 
-pfds_ordering Double_cmp(pfds_ordered *l, pfds_ordered *r) {
-    double ll = ((pfds_Double*) l)->value;
-    double rr = ((pfds_Double*) r)->value;
+struct pfds_Double {
+    pfds_object object;
+    double value;
+};
+
+struct pfds_UInt64 {
+    pfds_object object;
+    unsigned long value;
+};
+
+pfds_ordering pfds_Double_cmp(pfds_Double *l, pfds_Double *r) {
     // TODO: NaNs are not handled at all.
+    double ll = l->value;
+    double rr = r->value;
     if (ll < rr) {
         return PFDS_LT;
     } else if (ll > rr) {
@@ -31,9 +43,6 @@ pfds_ordering Double_cmp(pfds_ordered *l, pfds_ordered *r) {
     }
 
 }
-static pfds_orderedvtable Double_orderingvtable = {
-    .cmp = &Double_cmp
-};
 
 void Double_debugfputs(FILE* stream, pfds_object* self_obj) {
     pfds_Double* self = (pfds_Double*) self_obj;
@@ -43,7 +52,8 @@ void Double_debugfputs(FILE* stream, pfds_object* self_obj) {
 const pfds_objectvtable pfds_Double_vtable = {
     .typename = "Double",
     .debugfputs = Double_debugfputs,
-    .ordering = &Double_orderingvtable,
+    .cmp = (pfds_ordering (*)(pfds_object*, pfds_object*))
+        pfds_Double_cmp,
 };
 
 extern pfds_Double* pfds_Double_new(double value) {
@@ -55,9 +65,9 @@ extern double pfds_Double_get(pfds_Double* self) {
     return self->value;
 }
 
-pfds_ordering UInt64_cmp(pfds_ordered *l, pfds_ordered *r) {
-    unsigned long ll = ((pfds_UInt64*) l)->value;
-    unsigned long rr = ((pfds_UInt64*) r)->value;
+pfds_ordering pfds_UInt64_cmp(pfds_UInt64 *l, pfds_UInt64 *r) {
+    unsigned long ll = l->value;
+    unsigned long rr = r->value;
     // TODO: NaNs are not handled at all.
     if (ll < rr) {
         return PFDS_LT;
@@ -68,9 +78,6 @@ pfds_ordering UInt64_cmp(pfds_ordered *l, pfds_ordered *r) {
     }
 
 }
-static pfds_orderedvtable UInt64_orderingvtable = {
-    .cmp = &UInt64_cmp
-};
 
 void UInt64_debugfputs(FILE* stream, pfds_object* self_obj) {
     pfds_UInt64* self = (pfds_UInt64*) self_obj;
@@ -80,7 +87,8 @@ void UInt64_debugfputs(FILE* stream, pfds_object* self_obj) {
 const pfds_objectvtable pfds_UInt64_vtable = {
     .typename = "UInt64",
     .debugfputs = UInt64_debugfputs,
-    .ordering = &UInt64_orderingvtable,
+    .cmp = (pfds_ordering (*)(pfds_object*, pfds_object*))
+        pfds_UInt64_cmp,
 };
 
 extern pfds_UInt64* pfds_UInt64_new(unsigned long value) {

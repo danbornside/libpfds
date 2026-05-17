@@ -15,4 +15,4 @@ vgcore.*
 /pfds/pfds-intl.h
 /config.status
 /config.inc.sh
-
+/builddocs/*

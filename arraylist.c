@@ -18,6 +18,14 @@
 
 #include <string.h>
 #include "pfds.h"
+#include "pfds/pfds-object-intl.h"
+#include "pfds/pfds-arraylist.h"
+
+struct pfds_ArrayList {
+    pfds_object object;
+    size_t size;
+    pfds_object **elements;
+};
 
 pfds_ArrayList* pfds_ArrayList_new(size_t size, pfds_object* elements[], bool owner);
 pfds_ArrayList* ArrayList_insertBefore(pfds_ArrayList* self, size_t n, pfds_object* x);
@@ -72,28 +80,22 @@ void ArrayList_debugfputs(FILE* stream, pfds_object* self_obj) {
     fputs("]", stream);
 }
 
-pfds_ordering ArrayList_cmp(pfds_ordered* l, pfds_ordered* r) {
-    pfds_ArrayList* ll = (pfds_ArrayList*) l;
-    pfds_ArrayList* rr = (pfds_ArrayList*) r;
-    size_t size = ll->size > rr->size ? rr->size : ll->size;
+pfds_ordering pfds_ArrayList_cmp(pfds_ArrayList* l, pfds_ArrayList* r) {
+    size_t size = l->size > r->size ? r->size : l->size;
     for(size_t i = 0; i < size; ++i) {
-        pfds_ordering o = pfds_cmp(ll->elements[i], rr->elements[i]);
+        pfds_ordering o = pfds_cmp(l->elements[i], r->elements[i]);
         if (o != 0) {
             return o;
         }
     }
-    if (ll->size < rr->size) {
+    if (l->size < r->size) {
         return PFDS_LT;
-    } else if (ll->size > rr->size) {
+    } else if (l->size > r->size) {
         return PFDS_GT;
     } else {
         return PFDS_EQ;
     }
 }
-
-static pfds_orderedvtable ArrayList_orderingvtable = {
-    .cmp = ArrayList_cmp,
-};
 
 
 bool pfds_ArrayList_isEmpty (pfds_sequence* self_obj) {
@@ -243,10 +245,12 @@ static pfds_sequencevtable ArrayList_sequencevtable = {
 
 const pfds_objectvtable pfds_ArrayList_vtable = {
     .typename = "ArrayList",
-    .catenable = &ArrayList_catenablevtable,
     .destroy = ArrayList_destroy,
     .debugfputs = ArrayList_debugfputs,
-    .ordering = &ArrayList_orderingvtable,
+    .cmp = (pfds_ordering (*)(pfds_object*, pfds_object*))
+        pfds_ArrayList_cmp,
+
+    .catenable = &ArrayList_catenablevtable,
     .sequence = &ArrayList_sequencevtable,
 };
 

@@ -16,9 +16,12 @@
 
 #define PFDS_INTERNAL
 
+#include "pfds.h"
+#include "pfds/pfds-object-intl.h"
+#include "pfds/pfds-treelist.h"
+
 #include <stdarg.h>
 #include <assert.h>
-#include "pfds.h"
 
 
 // todo/plan on this
@@ -1260,9 +1263,7 @@ extern pfds_ordering pfds_TreeList_cmp (pfds_TreeList* l, pfds_TreeList* r) {
             assert(FingerTree_popFront(&lHead, &ll, cat, mm, ll));
             pfds_object* rHead;
             assert(FingerTree_popFront(&rHead, &rr, cat, mm, rr));
-            pfds_ordering order = pfds_ordered_cmp(
-                    (pfds_ordered*) lHead,
-                    (pfds_ordered*) rHead);
+            pfds_ordering order = pfds_cmp(lHead, rHead);
             pfds_release(lHead);
             pfds_release(rHead);
             if (order != PFDS_EQ) {
@@ -1273,11 +1274,6 @@ extern pfds_ordering pfds_TreeList_cmp (pfds_TreeList* l, pfds_TreeList* r) {
         }
     }
 }
-
-const pfds_orderedvtable TreeList_ordered = {
-    .cmp = (pfds_ordering (*)(pfds_ordered*, pfds_ordered*))
-        pfds_TreeList_cmp,
-};
 
 extern pfds_TreeList* pfds_TreeList_singleton(pfds_object* x) {
     return TreeList_new(FingerTree_single(x));
@@ -1342,7 +1338,7 @@ extern pfds_TreeList* pfds_TreeList_pushBack (pfds_TreeList* init, pfds_object* 
 }
 
 bool pred_TreeList_size(unsigned long n, pfds_UInt64* m) {
-    return n < m->value;
+    return n < pfds_UInt64_get(m);
 }
 
 
@@ -1395,7 +1391,7 @@ extern size_t pfds_TreeList_size (pfds_TreeList* self) {
     pfds_UInt64* boxSize = (pfds_UInt64*) FingerTree_measure(
             &pfds_catenable_sum, measure_TreeList_size,
             self->fingerTree);
-    size_t size = boxSize->value;
+    size_t size = pfds_UInt64_get(boxSize);
     pfds_release(boxSize);
     return size;
 }
@@ -1544,8 +1540,9 @@ const pfds_objectvtable pfds_TreeList_vtable = {
     .debugfputs = (void (*)(FILE*, pfds_object*))
         pfds_sequence_defaultDebugfputs,
         // pfds_TreeList_debugfputs,
+    .cmp = (pfds_ordering (*)(pfds_object*, pfds_object*))
+        pfds_TreeList_cmp,
     .catenable = &TreeList_catenable,
     .sequence = &TreeList_sequence,
-    .ordering = &TreeList_ordered,
 };
 

@@ -3,6 +3,8 @@ CFLAGS += -fpic -MMD -MF $*.d -g -Wall -fprofile-arcs -ftest-coverage
 SRCS = $(wildcard *.c)
 OBJS = $(filter-out test_%,$(SRCS:%.c=%.o))
 DEPFILES := $(SRCS:%.c=%.d)
+HEADERS = pfds.h pfds/pfds-intl.h
+HEADERS += $(wildcard pfds/*.h)
 
 .PHONY: all
 all: libpfds.so libpfds.a
@@ -74,6 +76,6 @@ libpfds.so: ${OBJS}
 -include ${DEPFILES}
 
 .PHONY: docs
-docs: Doxyfile pfds.h
+docs: Doxyfile ${HEADERS}
 	doxygen Doxyfile
 

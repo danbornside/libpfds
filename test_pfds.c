@@ -27,6 +27,8 @@
 #include <ffi.h>
 
 #include "pfds.h"
+#include "pfds/pfds-linkedlist.h"
+#include "pfds/pfds-arraylist.h"
 #include "ccheck.h"
 
 void display_mallinfodelta(FILE* stream, struct mallinfo2 *start, struct mallinfo2 *end) {
@@ -566,13 +568,14 @@ void test_catenable_vtable(const pfds_catenablevtable* vtable) {
 
 void test_vtable(const pfds_objectvtable* vtable) {
     CU_ASSERT(vtable->typename != NULL);
+    CU_ASSERT(vtable->cmp != NULL);
+    CU_ASSERT(vtable->debugfputs != NULL);
 
     if (vtable->catenable) {
         test_catenable_vtable(vtable->catenable);
     }
-    if (vtable->ordering) {
-        CU_ASSERT(vtable->ordering->cmp != NULL);
-    }
+
+
     if (vtable->sequence) {
 
         // sequence is a monoid

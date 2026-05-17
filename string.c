@@ -19,7 +19,14 @@
 #define PFDS_INTERNAL
 
 #include "pfds.h"
+#include "pfds/pfds-object-intl.h"
 
+struct pfds_String {
+    pfds_object object;
+    bool owner;
+    size_t size;
+    const char* buf;
+};
 
 void String_destroy(pfds_String* self) {
     if (self->owner) {
@@ -59,13 +66,10 @@ pfds_String* pfds_String_concat(size_t n, pfds_String* chunks[]) {
     return pfds_String_new((const char*) buf, size, true);
 }
 
-pfds_ordering String_cmp(pfds_ordered *l, pfds_ordered *r) {
-    return strcmp(((pfds_String*)l)->buf, ((pfds_String*) r)->buf);
+pfds_ordering pfds_String_cmp(pfds_String *l, pfds_String *r) {
+    return strcmp(l->buf, r->buf);
 }
 
-static pfds_orderedvtable String_orderedvtable = {
-    .cmp = String_cmp
-};
 static pfds_catenablevtable String_catenablevtable = {
     .mempty = (pfds_object* (*)(void)) pfds_String_empty,
     .mappend = String_mappend,
@@ -76,8 +80,10 @@ const pfds_objectvtable pfds_String_vtable = {
     .typename = "String",
     .destroy = (void (*)(pfds_object*)) String_destroy,
     .debugfputs = (void (*)(FILE*, pfds_object*)) String_debugfputs,
+    .cmp = (pfds_ordering (*)(pfds_object*,pfds_object*))
+        pfds_String_cmp,
+
     .catenable = &String_catenablevtable,
-    .ordering = &String_orderedvtable,
 };
 
 extern pfds_String* pfds_String_new(const char* buf, size_t size, bool owner) {

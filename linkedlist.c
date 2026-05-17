@@ -25,6 +25,17 @@
 
 #define PFDS_INTERNAL
 #include "pfds.h"
+#include "pfds/pfds-object-intl.h"
+#include "pfds/pfds-linkedlist.h"
+
+struct pfds_LinkedList
+{
+    pfds_object object;
+    size_t size;
+    pfds_object* head;
+    pfds_LinkedList* tail;
+};
+
 
 pfds_LinkedList* LinkedList_mappend(pfds_LinkedList* self, pfds_LinkedList* other) {
     if (self->head == NULL) {
@@ -77,7 +88,7 @@ static pfds_catenablevtable LinkedList_catenable = {
     .concat = (pfds_object* (*)(size_t, pfds_object*[])) LinkedList_concat,
 };
 
-pfds_ordering LinkedList_cmp(pfds_LinkedList* l, pfds_LinkedList* r) {
+pfds_ordering pfds_LinkedList_cmp(pfds_LinkedList* l, pfds_LinkedList* r) {
     while (l->head != NULL && r->head != NULL) {
         pfds_ordering c = pfds_cmp(l->head, r->head);
         if (c != PFDS_EQ) {
@@ -96,10 +107,6 @@ pfds_ordering LinkedList_cmp(pfds_LinkedList* l, pfds_LinkedList* r) {
         return PFDS_GT;
     }
 }
-
-static pfds_orderedvtable LinkedList_ordering = {
-    .cmp = (pfds_ordering (*)(pfds_ordered*, pfds_ordered*)) LinkedList_cmp,
-};
 
 bool LinkedList_isEmpty(pfds_sequence* self_obj) {
     pfds_LinkedList* self = (pfds_LinkedList*) self_obj;
@@ -386,8 +393,10 @@ const pfds_objectvtable pfds_LinkedList_vtable = {
     .debugfputs = (void (*)(FILE*, pfds_object*))
         pfds_sequence_defaultDebugfputs,
         // LinkedList_debugfputs,
+    .cmp = (pfds_ordering (*)(pfds_object*, pfds_object*))
+        pfds_LinkedList_cmp,
     .catenable = &LinkedList_catenable,
-    .ordering = &LinkedList_ordering,
+
     .sequence = &LinkedList_sequence,
 };
 

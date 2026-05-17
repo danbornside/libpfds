@@ -81,11 +81,10 @@ WARN_LOGFILE           =
 
 # Configuration options related to the input files
 
-INPUT                  =
+INPUT                  = pfds.h pfds/pfds-intl.h pfds/
 INPUT_ENCODING         = UTF-8
 INPUT_FILE_ENCODING    =
-FILE_PATTERNS          = *.c \
-                         *.h \
+FILE_PATTERNS          = *.h \
                          *.md
 RECURSIVE              = NO
 EXCLUDE                =
@@ -215,7 +214,7 @@ MAN_LINKS              = NO
 
 
 # Configuration options related to the XML output
-GENERATE_XML           = YES
+GENERATE_XML           = NO
 XML_OUTPUT             = xml
 XML_PROGRAMLISTING     = YES
 XML_NS_MEMB_FILE_SCOPE = NO

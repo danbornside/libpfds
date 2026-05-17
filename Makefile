@@ -10,11 +10,22 @@ all: libpfds.so libpfds.a
 pfds/pfds-intl.h : pfds/pfds-intl.h.sh config.inc.sh
 	bash $< > $@
 
+config.status :
+	@echo "run ./configure first"
+	@exit 1
+
+config.inc.sh : config.status
+	bash config.status
 
 $(OBJS) : pfds/pfds-intl.h
 
+.PHONY: distclean
+distclean: clean
+	rm -f config.status
+
 .PHONY: clean
 clean:
+	rm -f config.inc.sh
 	rm -f libpfds.so libpfds.a \
 		test_pfds test_pfds.o test_pfds.d \
 		test_splitmix test_splitmix.o test_splitmix.d \

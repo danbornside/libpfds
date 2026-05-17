@@ -1,0 +1,68 @@
+#! /usr/bin/env bash
+
+set -e
+
+source configure.inc
+
+addPathOption 'prefix' '/usr/local' 'Installation root'
+addPathOption 'bindir' '(prefix)/bin' 'Installation dir for executable programs'
+addPathOption 'includedir' '(prefix)/include' 'Installation dir for header files'
+addPathOption 'libdir' '(prefix)/lib' 'Installation dir for libraries'
+addPathOption 'mandir' '(prefix)/share/man' 'Installation dir for man pages'
+addPathOption 'htmldir' '(prefix)/share/html' 'Installation dir for html documentation pages'
+
+addFeatureOption "refcounts" "enabled" "use built in reference counting mechanism"
+addFeatureOption "debuggc" "disabled" "enable reference counting debuggig mechanism (implies refcounts)"
+
+# addPackageOption "doxygen" "build docs with doxygen" "which"
+# addPackageOption "libffi" "enable libffi closures" "pkg-config"
+
+parseConfigureOptions "$@"
+
+generateConfigStatus > './config.status'
+
+# ONLY use PFDS_CONFIG_GC because the user might say something silly like
+#  ./configure --enable-debuggc --disable-refcounts
+if haveFeature "debuggc" ; then
+    handleEnvVar PFDS_CONFIG_GC debug
+elif haveFeature "refcounts" ; then
+    handleEnvVar PFDS_CONFIG_GC refcount
+else
+    handleEnvVar PFDS_CONFIG_GC none
+fi
+
+
+generateConfigInc > config.inc.sh
+
+PFDS_CONFIG_GC="$(envVarStatus PFDS_CONFIG_GC)"
+cat >> config.inc.sh << EOF
+export PFDS_CONFIG_GC
+
+# useful macros
+EOF
+
+case "$PFDS_CONFIG_GC" in
+    refcount)
+    cat >> config.inc.sh << "EOF"
+pfds_gcconfig () { echo "$1" ; }
+pfds_gcdebugconfig() { echo ""; }
+pfds_gcenabledconfig() { echo "$1"; }
+EOF
+        ;;
+    debug)
+    cat >> config.inc.sh << "EOF"
+pfds_gcconfig () { echo "$2" ; }
+pfds_gcdebugconfig() { echo "$1"; }
+pfds_gcenabledconfig() { echo "$1"; }
+EOF
+        ;;
+    none)
+    cat >> config.inc.sh << "EOF"
+pfds_gcconfig () { echo "$3" ; }
+pfds_gcdebugconfig() { echo "" ; }
+pfds_gcenabledconfig() { echo "" ; }
+EOF
+        ;;
+esac
+
+# vim: set syntax=bash sw=4 ts=4 et :

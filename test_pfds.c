@@ -26,9 +26,11 @@
 #include <argp.h>
 #include <ffi.h>
 
+#include "test_pfds.h"
 #include "pfds.h"
 #include "pfds/pfds-linkedlist.h"
 #include "pfds/pfds-arraylist.h"
+#include "pfds/pfds-arraymap.h"
 #include "ccheck.h"
 
 void display_mallinfodelta(FILE* stream, struct mallinfo2 *start, struct mallinfo2 *end) {
@@ -46,63 +48,6 @@ void display_mallinfodelta(FILE* stream, struct mallinfo2 *start, struct mallinf
     // fprintf(stream, "Topmost releasable block (keepcost):   %zu\t%zu\t%zd\t\n", start->keepcost, end->keepcost, end->keepcost- start->keepcost);
 }
 
-
-#define ASSERT_PFDS_STRING_EQUALS(actual, expected) \
-    { pfds_String* assertPfdsStringEquals_toString_##__LINE__ = pfds_toString(actual) ; \
-      CU_assertImplementation(!(strcmp((const char*)(pfds_String_toCstring( assertPfdsStringEquals_toString_##__LINE__) ), (const char*)(expected))), \
-              __LINE__, \
-              ("ASSERT_PFDS_STRING_EQUALS(" #actual ","  #expected ")"), \
-              __FILE__, \
-              "", CU_TRUE); \
-        pfds_release( assertPfdsStringEquals_toString_##__LINE__ );}
-
-#define ASSERT_PFDS_EQUALS(actual, expected) \
-  { CU_assertImplementation( \
-          (pfds_cmp(actual, expected) == PFDS_EQ), \
-          __LINE__, \
-          ("ASSERT_PFDS_EQUALS(" #actual ","  #expected ")"), \
-          __FILE__, "", CU_FALSE);\
-  }
-
-#if defined (PFDS_GC_DEBUGREFCOUNT)
-# define ASSERT_ONE_REF(self) { \
-    ptrdiff_t assertOneRef_refcount##__LINE__ = 1 + ((pfds_object*) self)->retaincount - ((pfds_object*) self)->releasecount; \
-      CU_assertImplementation( assertOneRef_refcount##__LINE__ == 1 , \
-              __LINE__, \
-              ("ASSERT_ONE_REF(" #self ")"), \
-              __FILE__, \
-              "", CU_FALSE); }
-#elif defined (PFDS_GC_REFCOUNT)
-# define ASSERT_ONE_REF(self) { \
-    ptrdiff_t assertOneRef_refcount##__LINE__ = ((pfds_object*) self)->refcount; \
-    CU_assertImplementation( assertOneRef_refcount##__LINE__ == 1 , \
-            __LINE__, \
-            ("ASSERT_ONE_REF(" #self ")"), \
-            __FILE__, \
-            "", CU_TRUE); }
-#elif defined (PFDS_GC_NONE)
-# define ASSERT_ONE_REF(self)
-#endif
-
-struct gc_counter { size_t totalRefs; size_t totalObjs; };
-
-#if defined (PFDS_GC_DEBUGREFCOUNT) || defined (PFDS_GC_REFCOUNT)
-# define PREPARE_GC_COUNTS(nm) struct pfds_gcinfo nm = pfds_getgcinfo() /* ; struct mallinfo2 nm##mi = mallinfo2() */
-# define ASSERT_GC_COUNTS(nm, exRefs, exObjs) { \
-    struct pfds_gcinfo nm##__LINE__ = pfds_getgcinfo(); \
-    /* struct mallinfo2 nm##mi_end = mallinfo2(); \
-     if (nm##mi_end.uordblks != nm##mi.uordblks) display_mallinfodelta(stderr, &nm##mi, &nm##mi_end); \
-    */ size_t acRefs##__LINE__ = (nm##__LINE__.retaincount - nm.retaincount) - (nm##__LINE__.releasecount - nm.releasecount); \
-    size_t acObjs##__LINE__ = (nm##__LINE__.births - nm.births) - (nm##__LINE__.deaths - nm.deaths); \
-    CU_assertImplementation( acRefs##__LINE__ == exRefs && acObjs##__LINE__ == exObjs , \
-            __LINE__, \
-            ("ASSERT_GC_COUNTS(" #nm ", " #exRefs ", " #exObjs ")"), \
-            __FILE__, \
-            "", CU_FALSE); }
-#elif defined (PFDS_GC_NONE)
-# define PREPARE_GC_COUNTS(nm)
-# define ASSERT_GC_COUNTS(nm, exRefs, exObjs)
-#endif
 
 
 pfds_sequence* mkTestValue_sequence(const pfds_sequencevtable* vtable, int seed);
@@ -182,13 +127,6 @@ void test_ArrayList(void) {
     pfds_release(xs);
     ASSERT_GC_COUNTS(gcCounts, 0, 0);
 }
-
-struct catenableInstance {
-    const char* name;
-    const pfds_catenablevtable *dict;
-    pfds_object*(*mkValue)(void*, int);
-    void* ud;
-};
 
 void test_treelist_cmp_1() {
 
@@ -618,6 +556,23 @@ void test_vtable(const pfds_objectvtable* vtable) {
 
     }
 
+    if (vtable->mapping) {
+        CU_ASSERT(vtable->mapping->fromArray != NULL);
+        CU_ASSERT(vtable->mapping->singleton != NULL);
+        CU_ASSERT(vtable->mapping->empty != NULL);
+        CU_ASSERT(vtable->mapping->isEmpty != NULL);
+        CU_ASSERT(vtable->mapping->size != NULL);
+        CU_ASSERT(vtable->mapping->lookup != NULL);
+        CU_ASSERT(vtable->mapping->insert != NULL);
+        CU_ASSERT(vtable->mapping->erase != NULL);
+
+        // CU_ASSERT(vtable->mapping->unionFirst != NULL);
+        // CU_ASSERT(vtable->mapping->intersectionFirst != NULL);
+        // CU_ASSERT(vtable->mapping->popMin != NULL);
+        // CU_ASSERT(vtable->mapping->popMax != NULL);
+        // CU_ASSERT(vtable->mapping->minKey != NULL);
+        // CU_ASSERT(vtable->mapping->maxKey != NULL);
+    }
 }
 
 
@@ -777,9 +732,7 @@ void test_gc_new_release_arrayListFromArray(void) {
 
 }
 
-void test_gc_sequence_fromArray(void* dictPtr) {
-
-    pfds_sequencevtable* dict = (pfds_sequencevtable*) dictPtr;
+void test_gc_sequence_fromArray(pfds_sequencevtable* dict) {
 
     PREPARE_GC_COUNTS(gcCounts);
 
@@ -795,8 +748,7 @@ void test_gc_sequence_fromArray(void* dictPtr) {
 
 }
 
-void test_gc_sequence_fromArray0(void* dictPtr) {
-    pfds_sequencevtable* dict = (pfds_sequencevtable*) dictPtr;
+void test_gc_sequence_fromArray0(pfds_sequencevtable* dict) {
 
     PREPARE_GC_COUNTS(gcCounts);
 
@@ -902,8 +854,7 @@ void test_gc_new_release_linkedListCons(void) {
 
 }
 
-void test_gc_sequence_fromArray2(void* dictPtr) {
-    pfds_sequencevtable* dict = (pfds_sequencevtable*) dictPtr;
+void test_gc_sequence_fromArray2(pfds_sequencevtable* dict) {
     PREPARE_GC_COUNTS(gcCounts);
 
     pfds_Double* theDouble = pfds_Double_new(5.0);
@@ -918,8 +869,7 @@ void test_gc_sequence_fromArray2(void* dictPtr) {
     ASSERT_GC_COUNTS(gcCounts, 0, 0);
 }
 
-void test_gc_sequence_fromArrayLoop(void* dictPtr) {
-    pfds_sequencevtable* dict = (pfds_sequencevtable*) dictPtr;
+void test_gc_sequence_fromArrayLoop(pfds_sequencevtable* dict) {
     size_t maxElts = 11;
     pfds_object** elts = alloca(sizeof(pfds_object*) * maxElts);
 
@@ -936,8 +886,7 @@ void test_gc_sequence_fromArrayLoop(void* dictPtr) {
 
 }
 
-void test_gc_sequence_singleton(void* dictPtr) {
-    pfds_sequencevtable* dict = (pfds_sequencevtable*) dictPtr;
+void test_gc_sequence_singleton(pfds_sequencevtable* dict) {
 
     PREPARE_GC_COUNTS(gcCounts);
 
@@ -952,8 +901,7 @@ void test_gc_sequence_singleton(void* dictPtr) {
     ASSERT_GC_COUNTS(gcCounts, 0, 0);
 }
 
-void test_gc_sequence_pushFront(void* dictPtr) {
-    pfds_sequencevtable* dict = (pfds_sequencevtable*) dictPtr;
+void test_gc_sequence_pushFront(pfds_sequencevtable* dict) {
 
     PREPARE_GC_COUNTS(gcCounts);
 
@@ -969,8 +917,7 @@ void test_gc_sequence_pushFront(void* dictPtr) {
 
 }
 
-void test_gc_sequence_pushBack(void* dictPtr) {
-    pfds_sequencevtable* dict = (pfds_sequencevtable*) dictPtr;
+void test_gc_sequence_pushBack(pfds_sequencevtable* dict) {
 
     PREPARE_GC_COUNTS(gcCounts);
 
@@ -983,8 +930,7 @@ void test_gc_sequence_pushBack(void* dictPtr) {
     ASSERT_GC_COUNTS(gcCounts, 0, 0);
 }
 
-void test_gc_sequence_popFront(void* dictPtr) {
-    pfds_sequencevtable* dict = (pfds_sequencevtable*) dictPtr;
+void test_gc_sequence_popFront(pfds_sequencevtable* dict) {
 
     PREPARE_GC_COUNTS(gcCounts);
 
@@ -1004,8 +950,7 @@ void test_gc_sequence_popFront(void* dictPtr) {
     ASSERT_GC_COUNTS(gcCounts, 0, 0);
 }
 
-void test_gc_sequence_insert(void* dictPtr) {
-    pfds_sequencevtable* dict = (pfds_sequencevtable*) dictPtr;
+void test_gc_sequence_insert(pfds_sequencevtable* dict) {
 
     PREPARE_GC_COUNTS(gcCounts);
 
@@ -1019,8 +964,7 @@ void test_gc_sequence_insert(void* dictPtr) {
     ASSERT_GC_COUNTS(gcCounts, 0, 0);
 }
 
-void test_gc_sequence_insertAfter(void* dictPtr) {
-    pfds_sequencevtable* dict = (pfds_sequencevtable*) dictPtr;
+void test_gc_sequence_insertAfter(pfds_sequencevtable* dict) {
 
     PREPARE_GC_COUNTS(gcCounts);
 
@@ -1033,8 +977,7 @@ void test_gc_sequence_insertAfter(void* dictPtr) {
 
     ASSERT_GC_COUNTS(gcCounts, 0, 0);
 }
-void test_gc_sequence_update(void* dictPtr) {
-    pfds_sequencevtable* dict = (pfds_sequencevtable*) dictPtr;
+void test_gc_sequence_update(pfds_sequencevtable* dict) {
 
     PREPARE_GC_COUNTS(gcCounts);
 
@@ -1048,8 +991,7 @@ void test_gc_sequence_update(void* dictPtr) {
     ASSERT_GC_COUNTS(gcCounts, 0, 0);
 }
 
-void test_gc_sequence_delete(void* dictPtr) {
-    pfds_sequencevtable* dict = (pfds_sequencevtable*) dictPtr;
+void test_gc_sequence_delete(pfds_sequencevtable* dict) {
 
     PREPARE_GC_COUNTS(gcCounts);
 
@@ -1060,8 +1002,7 @@ void test_gc_sequence_delete(void* dictPtr) {
     ASSERT_GC_COUNTS(gcCounts, 0, 0);
 }
 
-void test_gc_sequence_get(void* dictPtr) {
-    pfds_sequencevtable* dict = (pfds_sequencevtable*) dictPtr;
+void test_gc_sequence_get(pfds_sequencevtable* dict) {
 
     PREPARE_GC_COUNTS(gcCounts);
 
@@ -1079,8 +1020,7 @@ void test_gc_sequence_get(void* dictPtr) {
     ASSERT_GC_COUNTS(gcCounts, 0, 0);
 }
 
-void test_gc_sequence_getPastEnd(void* dictPtr) {
-    pfds_sequencevtable* dict = (pfds_sequencevtable*) dictPtr;
+void test_gc_sequence_getPastEnd(pfds_sequencevtable* dict) {
 
     PREPARE_GC_COUNTS(gcCounts);
 
@@ -1097,8 +1037,7 @@ void test_gc_sequence_getPastEnd(void* dictPtr) {
 }
 
 
-void test_gc_sequence_front(void* dictPtr) {
-    pfds_sequencevtable* dict = (pfds_sequencevtable*) dictPtr;
+void test_gc_sequence_front(pfds_sequencevtable* dict) {
 
     PREPARE_GC_COUNTS(gcCounts);
 
@@ -1116,8 +1055,7 @@ void test_gc_sequence_front(void* dictPtr) {
     ASSERT_GC_COUNTS(gcCounts, 0, 0);
 }
 
-void test_gc_sequence_back(void* dictPtr) {
-    pfds_sequencevtable* dict = (pfds_sequencevtable*) dictPtr;
+void test_gc_sequence_back(pfds_sequencevtable* dict) {
 
     PREPARE_GC_COUNTS(gcCounts);
 
@@ -1135,8 +1073,7 @@ void test_gc_sequence_back(void* dictPtr) {
     ASSERT_GC_COUNTS(gcCounts, 0, 0);
 }
 
-void test_gc_sequence_popBack(void* dictPtr) {
-    pfds_sequencevtable* dict = (pfds_sequencevtable*) dictPtr;
+void test_gc_sequence_popBack(pfds_sequencevtable* dict) {
 
     PREPARE_GC_COUNTS(gcCounts);
 
@@ -1157,8 +1094,7 @@ void test_gc_sequence_popBack(void* dictPtr) {
     ASSERT_GC_COUNTS(gcCounts, 0, 0);
 }
 
-void test_gc_sequence_popFront_empty(void* dictPtr) {
-    pfds_sequencevtable* dict = (pfds_sequencevtable*) dictPtr;
+void test_gc_sequence_popFront_empty(pfds_sequencevtable* dict) {
 
     PREPARE_GC_COUNTS(gcCounts);
 
@@ -1175,8 +1111,7 @@ void test_gc_sequence_popFront_empty(void* dictPtr) {
     ASSERT_GC_COUNTS(gcCounts, 0, 0);
 }
 
-void test_gc_sequence_front_empty(void* dictPtr) {
-    pfds_sequencevtable* dict = (pfds_sequencevtable*) dictPtr;
+void test_gc_sequence_front_empty(pfds_sequencevtable* dict) {
 
     PREPARE_GC_COUNTS(gcCounts);
 
@@ -1192,8 +1127,7 @@ void test_gc_sequence_front_empty(void* dictPtr) {
     ASSERT_GC_COUNTS(gcCounts, 0, 0);
 }
 
-void test_gc_sequence_back_empty(void* dictPtr) {
-    pfds_sequencevtable* dict = (pfds_sequencevtable*) dictPtr;
+void test_gc_sequence_back_empty(pfds_sequencevtable* dict) {
 
     PREPARE_GC_COUNTS(gcCounts);
 
@@ -1209,8 +1143,7 @@ void test_gc_sequence_back_empty(void* dictPtr) {
     ASSERT_GC_COUNTS(gcCounts, 0, 0);
 }
 
-void test_gc_sequence_popBack_empty(void* dictPtr) {
-    pfds_sequencevtable* dict = (pfds_sequencevtable*) dictPtr;
+void test_gc_sequence_popBack_empty(pfds_sequencevtable* dict) {
 
     PREPARE_GC_COUNTS(gcCounts);
 
@@ -1226,8 +1159,7 @@ void test_gc_sequence_popBack_empty(void* dictPtr) {
     ASSERT_GC_COUNTS(gcCounts, 0, 0);
 }
 
-void test_gc_sequence_split(void* dictPtr) {
-    pfds_sequencevtable* dict = (pfds_sequencevtable*) dictPtr;
+void test_gc_sequence_split(pfds_sequencevtable* dict) {
 
     PREPARE_GC_COUNTS(gcCounts);
 
@@ -1254,8 +1186,7 @@ void test_gc_sequence_split(void* dictPtr) {
     ASSERT_GC_COUNTS(gcCounts, 0, 0);
 }
 
-void test_gc_sequence_split1(void* dictPtr) {
-    pfds_sequencevtable* dict = (pfds_sequencevtable*) dictPtr;
+void test_gc_sequence_split1(pfds_sequencevtable* dict) {
 
     PREPARE_GC_COUNTS(gcCounts);
 
@@ -1278,8 +1209,7 @@ void test_gc_sequence_split1(void* dictPtr) {
     ASSERT_GC_COUNTS(gcCounts, 0, 0);
 }
 
-void test_gc_sequence_split2(void* dictPtr) {
-    pfds_sequencevtable* dict = (pfds_sequencevtable*) dictPtr;
+void test_gc_sequence_split2(pfds_sequencevtable* dict) {
 
     PREPARE_GC_COUNTS(gcCounts);
 
@@ -1302,8 +1232,7 @@ void test_gc_sequence_split2(void* dictPtr) {
     ASSERT_GC_COUNTS(gcCounts, 0, 0);
 }
 
-void test_gc_sequence_split3(void* dictPtr) {
-    pfds_sequencevtable* dict = (pfds_sequencevtable*) dictPtr;
+void test_gc_sequence_split3(pfds_sequencevtable* dict) {
 
     PREPARE_GC_COUNTS(gcCounts);
 
@@ -1326,9 +1255,8 @@ void test_gc_sequence_split3(void* dictPtr) {
     ASSERT_GC_COUNTS(gcCounts, 0, 0);
 }
 
-void test_gc_sequence_mappend_1(void* dictPtr) {
-    // this test exists to exercise a specific corner case in app3
-    pfds_sequencevtable* dict = (pfds_sequencevtable*) dictPtr;
+void test_gc_sequence_mappend_1(pfds_sequencevtable* dict) {
+    // this test exists to exercise a specific corner case in FingerTree_app3
 
     PREPARE_GC_COUNTS(gcCounts);
 
@@ -1342,9 +1270,8 @@ void test_gc_sequence_mappend_1(void* dictPtr) {
 
     ASSERT_GC_COUNTS(gcCounts, 0, 0);
 }
-void test_gc_sequence_mappend_2(void* dictPtr) {
-    // this test exists to exercise a specific corner case in app3
-    pfds_sequencevtable* dict = (pfds_sequencevtable*) dictPtr;
+void test_gc_sequence_mappend_2(pfds_sequencevtable* dict) {
+    // this test exists to exercise a specific corner case in FingerTree_app3
 
     PREPARE_GC_COUNTS(gcCounts);
 
@@ -1363,9 +1290,8 @@ void test_gc_sequence_mappend_2(void* dictPtr) {
 
     ASSERT_GC_COUNTS(gcCounts, 0, 0);
 }
-void test_gc_sequence_mappend_4(void* dictPtr) {
-    // this test exists to exercise a specific corner case in app3
-    pfds_sequencevtable* dict = (pfds_sequencevtable*) dictPtr;
+void test_gc_sequence_mappend_4(pfds_sequencevtable* dict) {
+    // this test exists to exercise a specific corner case in FingerTree_app3
 
     PREPARE_GC_COUNTS(gcCounts);
 
@@ -1380,9 +1306,8 @@ void test_gc_sequence_mappend_4(void* dictPtr) {
 
     ASSERT_GC_COUNTS(gcCounts, 0, 0);
 }
-void test_gc_sequence_mappend_3(void* dictPtr) {
-    // this test exists to exercise a specific corner case in app3
-    pfds_sequencevtable* dict = (pfds_sequencevtable*) dictPtr;
+void test_gc_sequence_mappend_3(pfds_sequencevtable* dict) {
+    // this test exists to exercise a specific corner case in FingerTree_app3
 
     PREPARE_GC_COUNTS(gcCounts);
 
@@ -1399,10 +1324,7 @@ void test_gc_sequence_mappend_3(void* dictPtr) {
 
     ASSERT_GC_COUNTS(gcCounts, 0, 0);
 }
-void test_gc_sequence_mpow(void* dictPtr) {
-
-    pfds_sequencevtable* dict = (pfds_sequencevtable*) dictPtr;
-
+void test_gc_sequence_mpow(pfds_sequencevtable* dict) {
     PREPARE_GC_COUNTS(gcCounts);
 
     pfds_sequence* xs = mkTestValue_sequence(dict, 3);
@@ -1416,8 +1338,7 @@ void test_gc_sequence_mpow(void* dictPtr) {
     ASSERT_GC_COUNTS(gcCounts, 0, 0);
 }
 
-void test_gc_sequence_isEmpty(void* dictPtr) {
-    pfds_sequencevtable* dict = (pfds_sequencevtable*) dictPtr;
+void test_gc_sequence_isEmpty(pfds_sequencevtable* dict) {
 
     PREPARE_GC_COUNTS(gcCounts);
 
@@ -1429,8 +1350,7 @@ void test_gc_sequence_isEmpty(void* dictPtr) {
     ASSERT_GC_COUNTS(gcCounts, 0, 0);
 }
 
-void test_gc_sequence_concatEmpty(void* dictPtr) {
-    pfds_sequencevtable* dict = (pfds_sequencevtable*) dictPtr;
+void test_gc_sequence_concatEmpty(pfds_sequencevtable* dict) {
 
     PREPARE_GC_COUNTS(gcCounts);
 
@@ -1443,8 +1363,7 @@ void test_gc_sequence_concatEmpty(void* dictPtr) {
     ASSERT_GC_COUNTS(gcCounts, 0, 0);
 }
 
-void test_gc_sequence_concat(void* dictPtr) {
-    pfds_sequencevtable* dict = (pfds_sequencevtable*) dictPtr;
+void test_gc_sequence_concat(pfds_sequencevtable* dict) {
 
     PREPARE_GC_COUNTS(gcCounts);
 
@@ -1460,8 +1379,7 @@ void test_gc_sequence_concat(void* dictPtr) {
     ASSERT_GC_COUNTS(gcCounts, 0, 0);
 }
 
-void test_gc_sequence_reduceRight(void* dictPtr) {
-    pfds_sequencevtable* dict = (pfds_sequencevtable*) dictPtr;
+void test_gc_sequence_reduceRight(pfds_sequencevtable* dict) {
 
     PREPARE_GC_COUNTS(gcCounts);
 
@@ -1475,8 +1393,7 @@ void test_gc_sequence_reduceRight(void* dictPtr) {
 
     ASSERT_GC_COUNTS(gcCounts, 0, 0);
 }
-void test_gc_sequence_reduceLeft(void* dictPtr) {
-    pfds_sequencevtable* dict = (pfds_sequencevtable*) dictPtr;
+void test_gc_sequence_reduceLeft(pfds_sequencevtable* dict) {
 
     PREPARE_GC_COUNTS(gcCounts);
 
@@ -1685,7 +1602,7 @@ void test_treelist_lookup_1 (void) {
     free(fixture);
 
 }
-void test_treelist_debugfprint (void) {
+void test_treelist_debugfputs (void) {
     PREPARE_GC_COUNTS(gcCounts);
     pfds_object* elements[50];
     for (int i = 0 ; i < 50; i++) {
@@ -2037,21 +1954,22 @@ int main(int argc, char** argv)
 
     CU_pSuite validatorSuite = CU_add_suite("typedefs", 0, 0);
 
-    CU_add_test_with(validatorSuite, "validate vtable/LinkedList", (CU_TestFunc1) test_vtable, (void*) &pfds_LinkedList_vtable);
-    CU_add_test_with(validatorSuite, "validate vtable/ArrayList", (CU_TestFunc1) test_vtable, (void*) &pfds_ArrayList_vtable);
-    CU_add_test_with(validatorSuite, "validate vtable/TreeList", (CU_TestFunc1) test_vtable, (void*) &pfds_TreeList_vtable);
+    CU_add_test_with(validatorSuite, "vtable/LinkedList", (CU_TestFunc1) test_vtable, (void*) &pfds_LinkedList_vtable);
+    CU_add_test_with(validatorSuite, "vtable/ArrayList", (CU_TestFunc1) test_vtable, (void*) &pfds_ArrayList_vtable);
+    CU_add_test_with(validatorSuite, "vtable/TreeList", (CU_TestFunc1) test_vtable, (void*) &pfds_TreeList_vtable);
+    CU_add_test_with(validatorSuite, "vtable/ArrayMap", (CU_TestFunc1) test_vtable, (void*) &pfds_ArrayMap_vtable);
 
 
     CU_pSuite gcSuite = CU_add_suite("gc", 0, 0);
-    CU_add_test(gcSuite, "new->release double", test_gc_new_release_double);
-    CU_add_test(gcSuite, "new->release string", test_gc_new_release_string);
-    CU_add_test(gcSuite, "new->release constString", test_gc_new_release_constString);
-    CU_add_test(gcSuite, "new->release arrayListEmpty", test_gc_new_release_arrayListEmpty);
-    CU_add_test(gcSuite, "new->release arrayListFromArray0", test_gc_new_release_arrayListFromArray0);
-    CU_add_test(gcSuite, "new->release arrayListFromArray", test_gc_new_release_arrayListFromArray);
-    CU_add_test(gcSuite, "new->release arrayListFromArray2", test_gc_new_release_arrayListFromArray2);
-    CU_add_test(gcSuite, "new->release linkedListNil", test_gc_new_release_linkedListNil);
-    CU_add_test(gcSuite, "new->release linkedListCons", test_gc_new_release_linkedListCons);
+    CU_add_test(gcSuite, "new/double", test_gc_new_release_double);
+    CU_add_test(gcSuite, "new/string", test_gc_new_release_string);
+    CU_add_test(gcSuite, "new/constString", test_gc_new_release_constString);
+    CU_add_test(gcSuite, "new/arrayListEmpty", test_gc_new_release_arrayListEmpty);
+    CU_add_test(gcSuite, "new/arrayListFromArray0", test_gc_new_release_arrayListFromArray0);
+    CU_add_test(gcSuite, "new/arrayListFromArray", test_gc_new_release_arrayListFromArray);
+    CU_add_test(gcSuite, "new/arrayListFromArray2", test_gc_new_release_arrayListFromArray2);
+    CU_add_test(gcSuite, "new/linkedListNil", test_gc_new_release_linkedListNil);
+    CU_add_test(gcSuite, "new/linkedListCons", test_gc_new_release_linkedListCons);
 
     struct gcObjectMethods {
         CU_TestFunc1 testFn;
@@ -2081,7 +1999,7 @@ int main(int argc, char** argv)
     }
 
     struct gcSequenceMethods {
-        CU_TestFunc1 testFn;
+        void (*testFn)(pfds_sequencevtable*);
         const char* desc;
     } gcSequenceMethods[] = {
         { .testFn = test_gc_sequence_fromArray0, .desc = "fromArray/empty", },
@@ -2142,7 +2060,7 @@ int main(int argc, char** argv)
             CU_add_test_with(
                     gcSuite,
                     ssprintf("%s/%s", sequenceInstance[j].vtable->typename, gcSequenceMethods[i].desc).buf,
-                    gcSequenceMethods[i].testFn,
+                    (CU_TestFunc1) gcSequenceMethods[i].testFn,
                     (void*) sequenceInstance[j].vtable->sequence);
         }
     }
@@ -2158,10 +2076,7 @@ int main(int argc, char** argv)
         { 0 }
     };
 
-    struct propCatenableMethods {
-        void (*testFn)(struct catenableInstance*);
-        const char* desc;
-    } propCatenableMethods[] = {
+    struct propCatenableMethods propCatenableMethods[] = {
         { .testFn = test_catenable_ident, .desc = "identity" },
         { .testFn = test_catenable_assoc, .desc = "associative" },
         { .testFn = test_catenable_concat, .desc = "concat=append" },
@@ -2198,7 +2113,7 @@ int main(int argc, char** argv)
     CU_add_test(miscSuite, "TreeList/cmp/case1", test_treelist_cmp_1);
     CU_add_test(miscSuite, "TreeList/lookup/case1", test_treelist_lookup_1);
     CU_add_test(miscSuite, "TreeList/lookup/case2", test_treelist_lookup_2);
-    CU_add_test(miscSuite, "TreeList/debugfprint", test_treelist_debugfprint);
+    CU_add_test(miscSuite, "TreeList/debugfputs", test_treelist_debugfputs);
 
 
     CU_add_test(miscSuite, "test of pfds_String", test_String);

@@ -45,6 +45,7 @@
 #ifndef PFDS_HEADER_INCLUDED
 #define PFDS_HEADER_INCLUDED
 
+#include "pfds/pfds-mapping.h"
 #include "pfds/pfds-catenable.h"
 #include "pfds/pfds-functions.h"
 #include "pfds/pfds-intl.h"

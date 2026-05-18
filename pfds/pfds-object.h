@@ -24,6 +24,7 @@
 typedef struct pfds_objectvtable pfds_objectvtable;
 typedef struct pfds_catenablevtable pfds_catenablevtable;
 typedef struct pfds_sequencevtable pfds_sequencevtable;
+typedef struct pfds_mappingvtable pfds_mappingvtable;
 
 typedef enum pfds_ordering {
     PFDS_LT = -1,
@@ -90,6 +91,7 @@ struct pfds_objectvtable {
     /** object is a catenable */
     const pfds_catenablevtable *catenable;
     const pfds_sequencevtable *sequence;
+    const pfds_mappingvtable *mapping;
 };
 
 /** convenience function to display an object to a file stream.

@@ -16,6 +16,17 @@ For this to be in a releasable state, version 0.9 or whatever, i want to have th
 * doxygen docs.
 
 
+* so uh... goal for today is get the files reorganised
+* put the off-brand instances in less visible namespaces:
+
+* `pfds.h` -> `pfds.h` , pfds/pfds-{object,pfds-intl,function}.h
+* `string.c`
+* `num.c`
+* `treelist.c` -> `fingertree.c,treelist.c,pfds/fingertree.h,pfds/treelist.h`
+* `arraylist.c` -> `arraylist.c,pfds/pfds-array.h`
+* `linkedlist.c` -> `arraylist.c,pfds/pfds-array.h`
+
+
 ----
 
 minor code-tweak todos:

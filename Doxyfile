@@ -81,7 +81,7 @@ WARN_LOGFILE           =
 
 # Configuration options related to the input files
 
-INPUT                  = pfds.h pfds/pfds-intl.h pfds/
+INPUT                  = src/pfds.h src/pfds/pfds-intl.h src/pfds/ ccheck/
 INPUT_ENCODING         = UTF-8
 INPUT_FILE_ENCODING    =
 FILE_PATTERNS          = *.h \

@@ -24,10 +24,12 @@ shopt -s execfail
 
 
 DIR="$(dirname $0)"
-CONF="$(basename $DIR)/../config.inc.sh"
+CONF="${DIR}/../../config.inc.sh"
 
 if [ ! -f "$CONF" ] ; then
-    echo "run ./configure first" >&2
+    echo "$DIR ... " >&2
+    echo "$CONF not found:" >&2
+    echo "  run ./configure first" >&2
     exit 1
 else
     source "$CONF"

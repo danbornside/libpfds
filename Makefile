@@ -19,7 +19,7 @@ HEADERS += $(wildcard pfds/*.h)
 
 
 .PHONY: all
-all: libccheck.so libpfds.so libpfds.a
+all: libccheck.so libpfds.so libpfds.a test_pfds test_splitmix
 
 src/pfds/pfds-intl.h : src/pfds/pfds-intl.h.sh config.inc.sh
 	bash $< > $@
@@ -52,6 +52,7 @@ clean:
 		${SRCS:%.c=%.c.gcov} \
 		${SRCS:%.c=%.gcda} \
 		${SRCS:%.c=%.gcno} \
+		$(wildcard *.c.gcov)
 		$(wildcard *.h.gcov)
 	rm -rf ./builddocs
 
@@ -67,10 +68,24 @@ test_pfds: $(filter-out test/test_splitmix%,$(OBJS_TEST)) libccheck.a libpfds.a
 test_splitmix: test/test_splitmix.o ccheck/splitmix.o
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
-.PHONY: check
-check: test_pfds test_splitmix
+test_ccheck: LDFLAGS += -lcunit -lffi -lm
+test_ccheck: ccheck/test_ccheck.o ccheck/ccheck.o ccheck/splitmix.o
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+
+.PHONY: check_ccheck
+check_ccheck: test_ccheck
+	./test_ccheck
+
+.PHONY: check_splitmix
+check_splitmix: test_splitmix
 	./test_splitmix
+
+.PHONY: check_pfds
+check_pfds: test_pfds
 	./test_pfds -v
+
+.PHONY: check
+check: check_splitmix check_ccheck check_pfds
 	gcov -r ${SRCS} || echo $$?
 	grep '#####' *.gcov | wc
 

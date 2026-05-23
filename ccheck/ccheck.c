@@ -15,6 +15,7 @@
  */
 
 #include <stdlib.h>
+#include <float.h>
 #include "ccheck.h"
 #include "splitmix.h"
 
@@ -56,28 +57,96 @@ extern CU_pTest CU_add_test_with(CU_pSuite pSuite, char * strName, CU_TestFunc1 
     return CU_add_test(pSuite, strName, (CU_TestFunc) boundTestFunc);
 }
 
-void* generateIntImpl(void*, SplitMix64* randGen) {
-    int *sample = (int*) malloc(sizeof(int));
+void generateIntImpl(int* sample, void*, int size, SplitMix64* randGen) {
     *sample = SplitMix64_nextInt(randGen);
-    return (void*) sample;
 }
 
-int showIntImpl(FILE* stream, void* userData, void* sample) {
-    return fprintf(stream, "%d", * (int*) sample);
+int showIntImpl(FILE* stream, void* userData, int* sample) {
+    return fprintf(stream, "%d", *sample);
 }
 
 const struct CCHECK_Gen genInt = {
     .genType = &ffi_type_sint,
-    .generate = generateIntImpl,
-    .show = showIntImpl,
+    .generate = (void (*)(void* , void*, int , SplitMix64* ))
+        generateIntImpl,
+    .show = (int (*)(FILE*, void*, void*))
+        showIntImpl,
+};
+
+
+int showIntArray(FILE* stream, void*, struct CCHECK_IntArray* sample) {
+    int n = 0;
+    n += fprintf(stream, "[");
+    for (size_t i = 0; i < sample->size; i++) {
+        n += fprintf(stream, "%s%d", (i > 0 ? ", " : ""), sample->elements[i]);
+    }
+    n += fprintf(stream, "]");
+    return n;
+}
+
+void disposeIntArray(void*, struct CCHECK_IntArray* sample) {
+    if (sample->elements != NULL) {
+        free(sample->elements);
+    }
+}
+
+void generateSeries(struct CCHECK_IntArray* sample, void*, int size, SplitMix64* ) {
+    sample->size = size;
+    if (size > 0) {
+        sample->elements = (int*) calloc(sizeof(int), size);
+        for (size_t i = 0; i < size ; i++) {
+            sample->elements[i] = i;
+        }
+    } else {
+        sample->elements = NULL;
+    }
+
+}
+
+ffi_type* ffi_array_fields[] = {
+    &ffi_type_ulong,
+    &ffi_type_pointer,
+    NULL,
+};
+
+ffi_type ffi_array_type = {
+    .size = 0, // this will be initialised by libffi when first used.
+    .alignment = 0, // set by libffi when first used
+    .type = FFI_TYPE_STRUCT,
+    .elements = ffi_array_fields,
+};
+
+const CCHECK_Gen genSeries = {
+    .genType = &ffi_array_type,
+    .generate = (void (*)(void* , void*, int , SplitMix64* ))
+        generateSeries,
+    .show = (int (*)(FILE*, void*, void*))
+        showIntArray,
+    .dispose = (void (*)(void*, void*))
+        disposeIntArray,
+};
+
+void generateDoubleImpl(double* sample, void*, int size, SplitMix64* randGen) {
+    *sample = SplitMix64_nextDouble(randGen);
+}
+
+int showDoubleImpl(FILE* stream, void* userData, double* sample) {
+    return fprintf(stream, "%.*e", DBL_DECIMAL_DIG, *sample);
+}
+
+
+const struct CCHECK_Gen genDouble = {
+    .genType = &ffi_type_double,
+    .generate = (void (*)(void* , void*, int , SplitMix64* ))
+        generateDoubleImpl,
+    .show = (int (*)(FILE*, void*, void*))
+        showDoubleImpl,
 };
 
 void CCHECK_Gen_dispose(const CCHECK_Gen* gen, void* sample) {
     if (sample) {
         if (gen->dispose) {
             gen->dispose(gen->userData, sample);
-        } else {
-            free(sample); // if you show up on a sunday.
         }
     } else {
         fputs("CCHECK_Gen_dispose called on NULL", stderr);
@@ -131,11 +200,17 @@ struct CCHECK_Context {
 void CCHECK_Context_init(CCHECK_Context *ctx) {
     ctx->samples = ctx->sampleTail = NULL;
 }
+
+extern int CCHECK_Context_iteration(CCHECK_Context *ctx) {
+    return ctx->iteration;
+}
+
 void CCHECK_Context_reset(CCHECK_Context *ctx) {
     struct samplesList *cur, *prev;
     cur = ctx->samples;
     while (cur) {
         CCHECK_Gen_dispose(cur->gen, cur->sample);
+        free(cur->sample);
         cur->sample = NULL;
         prev = cur;
         cur = cur->next;
@@ -165,12 +240,13 @@ extern void CCHECK_assert_prop_impl(CCHECK_Context* ctx, int lineNo, char* fileN
     }
 }
 
-extern void* CCHECK_generate(CCHECK_Context* ctx, const CCHECK_Gen* gen, char* hint) {
+extern void* CCHECK_generate(CCHECK_Context* ctx, const CCHECK_Gen* gen, int size, char* hint) {
     struct samplesList* newSample = (struct samplesList*) malloc(sizeof(struct samplesList));
     newSample->next = NULL;
     newSample->sampleHint = hint;
     newSample->gen = gen;
-    newSample->sample = gen->generate(gen->userData, &ctx->seedGen);
+    newSample->sample = malloc(gen->genType->size);
+    gen->generate(newSample->sample, gen->userData, size, &ctx->seedGen);
     if (ctx->samples == NULL) {
         ctx->samples = newSample;
         ctx->sampleTail = newSample;
@@ -237,22 +313,30 @@ extern void CCHECK_test_forall_impl(
 
     ffi_cif cif;
     ffi_type **ffi_args = (ffi_type**) calloc(sizeof(ffi_type*), nargs);
-    void** values = (void**) calloc(sizeof(void*), nargs);
+    void** values = (void**) alloca(sizeof(void*) * nargs);
 
     for (size_t argn = 0; argn < nargs; argn++) {
         ffi_args[argn] = gens[argn]->genType;
     }
+
     if (ffi_prep_cif(&cif, FFI_DEFAULT_ABI, nargs, &ffi_type_sint, ffi_args) != FFI_OK) panic("ffi setup failed");
+
+    // we do this step after the call to ffi_prep_cif in case any of the gen type fields need to be set up with a correct size.
+    for (size_t argn = 0; argn < nargs; argn++) {
+        values[argn] = (void*) alloca(gens[argn]->genType->size);
+    }
 
     ffi_arg rc;
 
     int iteration;
     for (iteration = 0; iteration < iterations; iteration++) {
+        // TODO: come up with a better way to give the size
+        int size = iteration >> 4;
 
         for (int argn = 0; argn < nargs; argn++) {
             SplitMix64 argGen;
             SplitMix64_split(&argGen, seedGen);
-            values[argn] = gens[argn]->generate(gens[argn]->userData, &argGen);
+            gens[argn]->generate(values[argn], gens[argn]->userData, size, &argGen);
         }
         ffi_call(&cif, propFn, &rc, values);
         switch (rc) {
@@ -270,7 +354,6 @@ extern void CCHECK_test_forall_impl(
 
                 for (int argn = 0; argn < nargs; argn++) {
                     CCHECK_Gen_dispose(gens[argn], values[argn]);
-                    values[argn] = NULL;
                 }
 
                 CU_assertImplementation(CU_FALSE, lineNo ,buf, fileName , "FORALL", CU_FALSE);
@@ -279,7 +362,6 @@ extern void CCHECK_test_forall_impl(
             default:
                 for (int argn = 0; argn < nargs; argn++) {
                     CCHECK_Gen_dispose(gens[argn], values[argn]);
-                    values[argn] = NULL;
                 }
                 break;
         }
@@ -339,4 +421,158 @@ extern CU_pTest CCHECK_add_prop_forall_impl(CU_pSuite pSuite, int iterations,
     }
 
     return CU_add_test(pSuite, strName, (CU_TestFunc) boundTestFunc);
+}
+
+void generateConstIntImpl(int* sample, void* ud, int size, SplitMix64* seed) {
+    *sample = (int) (long) ud;
+}
+
+
+CCHECK_Gen* genIntConstant(int k) {
+    CCHECK_Gen* myGen = (CCHECK_Gen*) malloc(sizeof(CCHECK_Gen));
+    myGen->genType = &ffi_type_sint;
+    myGen->generate = (void (*)(void* , void*, int , SplitMix64* ))
+            generateConstIntImpl;
+    myGen->show = (int (*)(FILE*, void*, void*))
+            showIntImpl;
+    myGen->userData = (void*) (long) k;
+
+    return myGen;
+}
+
+struct Gen_ConstantDouble {
+    CCHECK_Gen gen;
+    double k;
+};
+
+void generateConstDoubleImpl(double* sample, struct Gen_ConstantDouble* ud, int size, SplitMix64* seed) {
+    *sample = ud->k;
+}
+
+CCHECK_Gen* genDoubleConstant(double k) {
+    struct Gen_ConstantDouble* myGen = (struct Gen_ConstantDouble*) malloc(sizeof(struct Gen_ConstantDouble));
+    myGen->gen.genType = &ffi_type_double;
+    myGen->gen.generate = (void (*)(void* , void*, int , SplitMix64* ))
+            generateConstDoubleImpl;
+    myGen->gen.show = (int (*)(FILE*, void*, void*))
+            showDoubleImpl;
+    myGen->gen.userData = (void*) myGen;
+    myGen->k = k;
+
+    return (CCHECK_Gen*) myGen;
+}
+
+
+struct Gen_IntRange {
+    CCHECK_Gen gen;
+    int lb;
+    int ub;
+};
+
+void generateIntRange(int* sample, struct Gen_IntRange* ud, int size, SplitMix64* seed) {
+    *sample = (int) SplitMix64_nextInt64Range(seed, ud->lb, ud->ub);
+}
+
+CCHECK_Gen* genIntRange(int lb, int ub) {
+    struct Gen_IntRange* myGen = (struct Gen_IntRange*) malloc(sizeof(struct Gen_IntRange));
+    myGen->gen.genType = &ffi_type_sint;
+    myGen->gen.generate = (void (*)(void* , void*, int , SplitMix64* ))
+            generateIntRange;
+    myGen->gen.show = (int (*)(FILE*, void*, void*))
+            showIntImpl;
+    myGen->gen.userData = (void*) myGen;
+    myGen->lb = lb;
+    myGen->ub = ub;
+
+    return (CCHECK_Gen*) myGen;
+}
+
+struct Gen_DoubleRange {
+    CCHECK_Gen gen;
+    double lb;
+    double ub;
+};
+
+void generateDoubleRange(double* sample, struct Gen_DoubleRange* ud, int size, SplitMix64* seed) {
+    *sample = SplitMix64_nextDoubleRange(seed, ud->lb, ud->ub);
+}
+
+extern CCHECK_Gen* genDoubleRange(double lb, double ub) {
+    struct Gen_DoubleRange* myGen = (struct Gen_DoubleRange*) malloc(sizeof(struct Gen_DoubleRange));
+    myGen->gen.genType = &ffi_type_double;
+    myGen->gen.generate = (void (*)(void* , void*, int , SplitMix64* ))
+            generateDoubleRange;
+    myGen->gen.show = (int (*)(FILE*, void*, void*))
+            showDoubleImpl;
+    myGen->gen.userData = (void*) myGen;
+    myGen->lb = lb;
+    myGen->ub = ub;
+
+    return (CCHECK_Gen*) myGen;
+}
+
+size_t asize(size_t s, size_t a) {
+    size_t sa = s & ~(a - 1);
+    return s == sa ? sa : sa + a;
+}
+
+void generateArray(CCHECK_Array* sample, CCHECK_Gen* elementGen, int size, SplitMix64* seed) {
+    sample->size = size;
+    if (size > 0) {
+        sample->elements = calloc(elementGen->genType->size, size);
+        size_t elemSize = asize(elementGen->genType->size, elementGen->genType->alignment);
+        for (size_t i = 0; i < size; i++) {
+            elementGen->generate(sample->elements + (i * elemSize), elementGen->userData, size, seed);
+        }
+    } else {
+        sample->elements = NULL;
+    }
+}
+
+int showArray(FILE* stream, CCHECK_Gen* elementGen, CCHECK_Array* sample) {
+    int n = 0;
+    size_t elemSize = asize(elementGen->genType->size, elementGen->genType->alignment);
+    n += fprintf(stream, "[");
+    for (size_t i = 0; i < sample->size; i++) {
+        n += fprintf(stream, "%s", (i > 0 ? ", " : ""));
+        void* thisSample = sample->elements + (i*elemSize);
+        n += elementGen->show(stream, elementGen->userData, thisSample);
+    }
+    n += fprintf(stream, "]");
+    return n;
+}
+
+void disposeArray(CCHECK_Gen* elementGen, CCHECK_Array* sample) {
+    size_t elemSize = asize(elementGen->genType->size, elementGen->genType->alignment);
+    if (elementGen->dispose) {
+        for (size_t i = 0; i < sample->size; i++) {
+            void* thisSample = sample->elements + (i*elemSize);
+            elementGen->dispose(elementGen->userData, thisSample);
+        }
+    }
+    if (sample->elements != NULL) {
+        free(sample->elements);
+    }
+}
+
+extern CCHECK_Gen* genArray(CCHECK_Gen* elementGen) {
+    struct CCHECK_Gen* myGen = (struct CCHECK_Gen*) malloc(sizeof(struct CCHECK_Gen));
+    myGen->userData = elementGen;
+    myGen->genType = &ffi_array_type;
+    myGen->generate = (void (*)(void* , void*, int , SplitMix64* ))
+        generateArray;
+    myGen->show = (int (*)(FILE*, void*, void*))
+        showArray;
+    myGen->dispose = (void (*)(void*, void*))
+        disposeArray;
+
+    // ensure the size/alignment fields of the parent generator are set properly.
+    if (elementGen->genType->size == 0 || elementGen->genType->alignment == 0) {
+        ffi_cif cif;
+        ffi_type * args[1] = { elementGen->genType };
+        if(ffi_prep_cif(&cif, 0, 1, &ffi_type_void, args) != FFI_OK) {
+            panic("ffi setup failed");
+        }
+    }
+    return myGen;
 }

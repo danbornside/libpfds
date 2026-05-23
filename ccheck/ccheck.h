@@ -48,11 +48,14 @@ typedef struct CCHECK_Gen {
     ffi_type* genType;
 
     /** generate a random value cast to void*
-     * @param userData
-     * @param randGen the value generated must be deterministically computed from.
-     * @returns a pointer to the generated value cast to void*
+     * @param [out] result a pointer to a region of a suitable size 
+     * @param [in] userData
+     * @param [in] size how "big" the generated sample should be.
+     * @param [in] randGen the value generated must be deterministically computed from.
      */
-    void* (*generate)(void* userData, SplitMix64 *randGen);
+    void (*generate)(void* result, void* userData, int size, SplitMix64 *randGen);
+
+
     /** render the value to the supplied stream.
      *
      * used to display counterexamples for failing properties.
@@ -75,14 +78,31 @@ typedef struct CCHECK_Gen {
     void (*dispose)(void* userData, void* sample);
 } CCHECK_Gen;
 
-extern const struct CCHECK_Gen genInt;
-extern const struct CCHECK_Gen genDouble;
+extern const CCHECK_Gen genInt;
+extern const CCHECK_Gen genDouble;
 
-void genIntConstant(CCHECK_Gen* gen, int);
-void genIntRange(CCHECK_Gen* gen, int, int);
+typedef struct CCHECK_IntArray {
+    size_t size;
+    int* elements;
+} CCHECK_IntArray;
 
-void genDoubleConstant(CCHECK_Gen* gen, double);
-void genDoubleRange(CCHECK_Gen* gen, double, double);
+typedef struct CCHECK_Array {
+    size_t size;
+    void* elements;
+} CCHECK_Array;
+
+
+// CCHECK_Gen* genSeries();
+extern const CCHECK_Gen genSeries;
+
+CCHECK_Gen* genIntConstant(int);
+CCHECK_Gen* genIntRange(int, int);
+
+CCHECK_Gen* genDoubleConstant(double);
+CCHECK_Gen* genDoubleRange(double, double);
+
+CCHECK_Gen* genArray(CCHECK_Gen*);
+
 
 /** add a test that checks a simple property
  *
@@ -115,7 +135,13 @@ extern void CCHECK_test_forall_impl(
     size_t nargs,
     struct CCHECK_Gen** gens);
 
-extern void* CCHECK_generate(CCHECK_Context* ctx, const CCHECK_Gen* gen, char* hint);
+/** generate a value in an imperative property.  the value returend is a
+ * pointer to the sample.  it is up to the caller of of CCHECK_generate to use
+ * this pointer appropriately, if eg, the pointed-to value can be safely copied or not. */
+extern void* CCHECK_generate(CCHECK_Context* ctx, const CCHECK_Gen* gen, int size, char* hint);
+
+/** get the current iteration in an imperative test to, for example, adjust the size of generated samples */
+extern int CCHECK_Context_iteration(CCHECK_Context *ctx);
 
 /** check a particular property holds.
  *

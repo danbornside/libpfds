@@ -11,6 +11,7 @@ vgcore.*
 
 /test_pfds
 /test_splitmix
+/test_ccheck
 .ipynb_checkpoints
 /src/pfds/pfds-intl.h
 /config.status

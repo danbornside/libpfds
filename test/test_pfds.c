@@ -50,7 +50,6 @@ void display_mallinfodelta(FILE* stream, struct mallinfo2 *start, struct mallinf
 
 
 
-pfds_sequence* mkTestValue_sequence(const pfds_sequencevtable* vtable, int seed);
 void test_catenable_vtable(const pfds_catenablevtable* vtable);
 
 void test_String(void) {
@@ -263,30 +262,6 @@ pfds_String * test_binop(void* ud, pfds_object* l, pfds_object * r) {
     return pfds_String_fromCstring(buf);
 }
 
-pfds_sequence* mkTestValue_sequence(const pfds_sequencevtable* vtable, int seed) {
-    switch(seed) {
-        case 1:
-            pfds_Double* array1[1] = { pfds_Double_new(1)};
-            return vtable->fromArray(1, (pfds_object**) array1);
-        case 2:
-            pfds_Double* array2[2] = { pfds_Double_new(2), pfds_Double_new(3)};
-            return vtable->fromArray(2, (pfds_object**) array2);
-        case 3:
-            pfds_Double* array3[3] = { pfds_Double_new(4), pfds_Double_new(5), pfds_Double_new(6)};
-            return vtable->fromArray(3, (pfds_object**) array3);
-
-        case 4:
-            pfds_Double* array4[3] = { pfds_Double_new(4), pfds_Double_new(6), pfds_Double_new(7)};
-            return vtable->fromArray(3, (pfds_object**) array4);
-
-        case 5:
-            pfds_Double* array5[3] = { pfds_Double_new(2), pfds_Double_new(3), pfds_Double_new(5)};
-            return vtable->fromArray(3, (pfds_object**) array5);
-        default:
-            return (pfds_sequence*) vtable->catenable->mempty();
-    }
-}
-
 void test_sequence(pfds_sequencevtable *vtable) {
     PREPARE_GC_COUNTS(gcCounts);
     pfds_sequence* xs = (pfds_sequence*) vtable->catenable->mempty(); // []
@@ -474,28 +449,6 @@ void test_sequence(pfds_sequencevtable *vtable) {
     ASSERT_GC_COUNTS(gcCounts, 0, 0);
 }
 
-CU_BOOL test_assoc_int(int a, int b, int c) {
-    return (a + b) + c == a + (b + c);
-}
-
-CU_BOOL test_lessthan_5(int n) {
-    return n < 5;
-}
-
-void imperative_prop(CCHECK_Context *ctx, void* userData) {
-    int a = *(int*) CCHECK_generate(ctx, &genInt, "a");
-    int b = *(int*) CCHECK_generate(ctx, &genInt, "b");
-
-    CCHECK_assert_prop(ctx, a+b == b+a /* commutative */ );
-
-    int c = *(int*) CCHECK_generate(ctx, &genInt, "c");
-    CCHECK_assert_prop(ctx, ((a+b)+c) == (a+(b+c)) /* associative */ );
-}
-
-void test_props_imperatively(void) {
-    CCHECK_test_prop_impl(NULL, 10, imperative_prop, NULL);
-}
-
 void test_catenable_vtable(const pfds_catenablevtable* vtable) {
     if (vtable) {
         CU_ASSERT(vtable->mempty != NULL);
@@ -681,6 +634,12 @@ static error_t parse_opt (int key, char *arg, struct argp_state *state) {
 static struct argp argp = {options, parse_opt, args_doc, doc};
 
 
+void test_run_one_gc_test (struct testGC * conf) {
+    PREPARE_GC_COUNTS(gcCounts);
+    conf->testFn(conf->userData);
+    ASSERT_GC_COUNTS(gcCounts, 0, 0);
+}
+
 
 void test_gc_new_release_double(void) {
         pfds_Double* theDouble = pfds_Double_new(5.0);
@@ -729,37 +688,6 @@ void test_gc_new_release_arrayListFromArray(void) {
     ASSERT_ONE_REF(theArrayList);
     pfds_release(theArrayList);
 
-
-}
-
-void test_gc_sequence_fromArray(pfds_sequencevtable* dict) {
-
-    PREPARE_GC_COUNTS(gcCounts);
-
-    pfds_Double* theDouble = pfds_Double_new(5.0);
-    pfds_object* elts[1] = {(pfds_object*) theDouble};
-    pfds_sequence* theList = dict->fromArray(1, elts);
-    ASSERT_ONE_REF(theList);
-    CU_ASSERT_EQUAL(pfds_sequence_size(theList), 1);
-    pfds_release(theList);
-
-
-    ASSERT_GC_COUNTS(gcCounts, 0, 0);
-
-}
-
-void test_gc_sequence_fromArray0(pfds_sequencevtable* dict) {
-
-    PREPARE_GC_COUNTS(gcCounts);
-
-    pfds_object* elts[0] = { };
-    pfds_sequence* theList = dict->fromArray(0, elts);
-    ASSERT_ONE_REF(theList);
-    CU_ASSERT_EQUAL(pfds_sequence_size(theList), 0);
-    pfds_release(theList);
-
-
-    ASSERT_GC_COUNTS(gcCounts, 0, 0);
 
 }
 
@@ -854,580 +782,6 @@ void test_gc_new_release_linkedListCons(void) {
 
 }
 
-void test_gc_sequence_fromArray2(pfds_sequencevtable* dict) {
-    PREPARE_GC_COUNTS(gcCounts);
-
-    pfds_Double* theDouble = pfds_Double_new(5.0);
-    pfds_retain(theDouble);
-    pfds_object* elts[1] = {(pfds_object*) theDouble};
-    pfds_sequence* theList = dict->fromArray(1, elts);
-    ASSERT_ONE_REF(theList);
-    pfds_release(theList);
-    ASSERT_ONE_REF(theDouble);
-    pfds_release(theDouble);
-
-    ASSERT_GC_COUNTS(gcCounts, 0, 0);
-}
-
-void test_gc_sequence_fromArrayLoop(pfds_sequencevtable* dict) {
-    size_t maxElts = 11;
-    pfds_object** elts = alloca(sizeof(pfds_object*) * maxElts);
-
-    for(int i = 0; i < maxElts; i++) {
-        PREPARE_GC_COUNTS(gcCounts);
-        for(int j = 0; j < i ; j++) {
-            elts[j] = (pfds_object*) pfds_Double_new(5.0);
-        }
-        pfds_sequence* theList = dict->fromArray(i, elts);
-        ASSERT_ONE_REF(theList);
-        pfds_release(theList);
-        ASSERT_GC_COUNTS(gcCounts, 0, 0);
-    }
-
-}
-
-void test_gc_sequence_singleton(pfds_sequencevtable* dict) {
-
-    PREPARE_GC_COUNTS(gcCounts);
-
-    pfds_object* theDouble = (pfds_object*) mkTestValue_Double(NULL, 123);
-
-    pfds_sequence * xs = dict->singleton(theDouble);
-
-    ASSERT_ONE_REF(xs);
-
-    pfds_release(xs);
-
-    ASSERT_GC_COUNTS(gcCounts, 0, 0);
-}
-
-void test_gc_sequence_pushFront(pfds_sequencevtable* dict) {
-
-    PREPARE_GC_COUNTS(gcCounts);
-
-
-    pfds_sequence* list1 = (pfds_sequence*) dict->catenable->mempty();
-    pfds_Double* theDouble = pfds_Double_new(5.0);
-    pfds_sequence* list2 = pfds_sequence_pushFront((pfds_object*) theDouble, list1);
-    ASSERT_ONE_REF(list2);
-    pfds_release(list2);
-
-
-    ASSERT_GC_COUNTS(gcCounts, 0, 0);
-
-}
-
-void test_gc_sequence_pushBack(pfds_sequencevtable* dict) {
-
-    PREPARE_GC_COUNTS(gcCounts);
-
-    pfds_sequence* list1 = (pfds_sequence*) dict->catenable->mempty();
-    pfds_Double* theDouble = pfds_Double_new(5.0);
-    pfds_sequence* list2 = pfds_sequence_pushBack(list1, (pfds_object*) theDouble);
-    ASSERT_ONE_REF(list2);
-    pfds_release(list2);
-
-    ASSERT_GC_COUNTS(gcCounts, 0, 0);
-}
-
-void test_gc_sequence_popFront(pfds_sequencevtable* dict) {
-
-    PREPARE_GC_COUNTS(gcCounts);
-
-    pfds_sequence* xs = mkTestValue_sequence(dict, 2);
-    ASSERT_ONE_REF(xs);
-    CU_ASSERT_FALSE(pfds_sequence_isEmpty(xs));
-    pfds_object* head = (pfds_object*) -1;
-    pfds_sequence* tail = (pfds_sequence*) -1;
-    CU_ASSERT(pfds_sequence_popFront(&head, &tail, xs));
-
-    ASSERT_ONE_REF(tail);
-    pfds_release(tail);
-
-    ASSERT_ONE_REF(head);
-    pfds_release(head);
-
-    ASSERT_GC_COUNTS(gcCounts, 0, 0);
-}
-
-void test_gc_sequence_insert(pfds_sequencevtable* dict) {
-
-    PREPARE_GC_COUNTS(gcCounts);
-
-    pfds_sequence* xs = pfds_sequence_insertBefore(
-            mkTestValue_sequence(dict, 3),
-            2,
-            (pfds_object*) mkTestValue_Double(NULL, 123));
-    CU_ASSERT_NOT_EQUAL(xs, NULL);
-    pfds_release(xs);
-
-    ASSERT_GC_COUNTS(gcCounts, 0, 0);
-}
-
-void test_gc_sequence_insertAfter(pfds_sequencevtable* dict) {
-
-    PREPARE_GC_COUNTS(gcCounts);
-
-    pfds_sequence* xs = pfds_sequence_insertAfter(
-            mkTestValue_sequence(dict, 3),
-            2,
-            (pfds_object*) mkTestValue_Double(NULL, 123));
-    CU_ASSERT_NOT_EQUAL(xs, NULL);
-    pfds_release(xs);
-
-    ASSERT_GC_COUNTS(gcCounts, 0, 0);
-}
-void test_gc_sequence_update(pfds_sequencevtable* dict) {
-
-    PREPARE_GC_COUNTS(gcCounts);
-
-    pfds_sequence* xs = pfds_sequence_updateAt(
-            mkTestValue_sequence(dict, 3),
-            2,
-            (pfds_object*) mkTestValue_Double(NULL, 123));
-    CU_ASSERT_NOT_EQUAL(xs, NULL);
-    pfds_release(xs);
-
-    ASSERT_GC_COUNTS(gcCounts, 0, 0);
-}
-
-void test_gc_sequence_delete(pfds_sequencevtable* dict) {
-
-    PREPARE_GC_COUNTS(gcCounts);
-
-    pfds_sequence* xs = pfds_sequence_deleteAt(mkTestValue_sequence(dict, 3), 2);
-    CU_ASSERT_NOT_EQUAL(xs, NULL);
-    pfds_release(xs);
-
-    ASSERT_GC_COUNTS(gcCounts, 0, 0);
-}
-
-void test_gc_sequence_get(pfds_sequencevtable* dict) {
-
-    PREPARE_GC_COUNTS(gcCounts);
-
-    pfds_sequence* xs = mkTestValue_sequence(dict, 2);
-    ASSERT_ONE_REF(xs);
-    CU_ASSERT_EQUAL(pfds_sequence_size(xs), 2);
-    pfds_object* x = pfds_sequence_get(xs, 1);
-
-    ASSERT_ONE_REF(xs);
-    pfds_release(xs);
-
-    ASSERT_ONE_REF(x);
-    pfds_release(x);
-
-    ASSERT_GC_COUNTS(gcCounts, 0, 0);
-}
-
-void test_gc_sequence_getPastEnd(pfds_sequencevtable* dict) {
-
-    PREPARE_GC_COUNTS(gcCounts);
-
-    pfds_sequence* xs = mkTestValue_sequence(dict, 2);
-    ASSERT_ONE_REF(xs);
-    CU_ASSERT_EQUAL(pfds_sequence_size(xs), 2);
-    pfds_object* x = pfds_sequence_get(xs, 4);
-
-    CU_ASSERT_EQUAL(x, NULL);
-    ASSERT_ONE_REF(xs);
-    pfds_release(xs);
-
-    ASSERT_GC_COUNTS(gcCounts, 0, 0);
-}
-
-
-void test_gc_sequence_front(pfds_sequencevtable* dict) {
-
-    PREPARE_GC_COUNTS(gcCounts);
-
-    pfds_sequence* xs = mkTestValue_sequence(dict, 2);
-    ASSERT_ONE_REF(xs);
-    CU_ASSERT_FALSE(pfds_sequence_isEmpty(xs));
-    pfds_object* head = pfds_sequence_front(xs);
-
-    ASSERT_ONE_REF(xs);
-    pfds_release(xs);
-
-    ASSERT_ONE_REF(head);
-    pfds_release(head);
-
-    ASSERT_GC_COUNTS(gcCounts, 0, 0);
-}
-
-void test_gc_sequence_back(pfds_sequencevtable* dict) {
-
-    PREPARE_GC_COUNTS(gcCounts);
-
-    pfds_sequence* xs = mkTestValue_sequence(dict, 2);
-    ASSERT_ONE_REF(xs);
-    CU_ASSERT_FALSE(pfds_sequence_isEmpty(xs));
-    pfds_object* last = pfds_sequence_back(xs);
-
-    ASSERT_ONE_REF(xs);
-    pfds_release(xs);
-
-    ASSERT_ONE_REF(last);
-    pfds_release(last);
-
-    ASSERT_GC_COUNTS(gcCounts, 0, 0);
-}
-
-void test_gc_sequence_popBack(pfds_sequencevtable* dict) {
-
-    PREPARE_GC_COUNTS(gcCounts);
-
-    pfds_sequence* xs = mkTestValue_sequence(dict, 2);
-    ASSERT_ONE_REF(xs);
-    CU_ASSERT_FALSE(pfds_sequence_isEmpty(xs));
-
-    pfds_object* last = (pfds_object*) -1;
-    pfds_sequence* init = (pfds_sequence*) -1;
-    CU_ASSERT(pfds_sequence_popBack(&init, &last, xs));
-
-    ASSERT_ONE_REF(init);
-    pfds_release(init);
-
-    ASSERT_ONE_REF(last);
-    pfds_release(last);
-
-    ASSERT_GC_COUNTS(gcCounts, 0, 0);
-}
-
-void test_gc_sequence_popFront_empty(pfds_sequencevtable* dict) {
-
-    PREPARE_GC_COUNTS(gcCounts);
-
-
-    pfds_sequence* e = (pfds_sequence*) dict->catenable->mempty();
-    ASSERT_ONE_REF(e);
-    pfds_object* head = (pfds_object*) -1;
-    pfds_sequence* tail = (pfds_sequence*) -1;
-    CU_ASSERT_FALSE(pfds_sequence_popFront(&head, &tail, e));
-    CU_ASSERT_EQUAL(head, NULL);
-    CU_ASSERT_EQUAL(tail, NULL);
-
-
-    ASSERT_GC_COUNTS(gcCounts, 0, 0);
-}
-
-void test_gc_sequence_front_empty(pfds_sequencevtable* dict) {
-
-    PREPARE_GC_COUNTS(gcCounts);
-
-
-    pfds_sequence* e = (pfds_sequence*) dict->catenable->mempty();
-    ASSERT_ONE_REF(e);
-    pfds_object* head = pfds_sequence_front(e);
-    CU_ASSERT_EQUAL(head, NULL);
-
-    ASSERT_ONE_REF(e);
-    pfds_release(e);
-
-    ASSERT_GC_COUNTS(gcCounts, 0, 0);
-}
-
-void test_gc_sequence_back_empty(pfds_sequencevtable* dict) {
-
-    PREPARE_GC_COUNTS(gcCounts);
-
-
-    pfds_sequence* e = (pfds_sequence*) dict->catenable->mempty();
-    ASSERT_ONE_REF(e);
-    pfds_object* last = pfds_sequence_back(e);
-    CU_ASSERT_EQUAL(last, NULL);
-
-    ASSERT_ONE_REF(e);
-    pfds_release(e);
-
-    ASSERT_GC_COUNTS(gcCounts, 0, 0);
-}
-
-void test_gc_sequence_popBack_empty(pfds_sequencevtable* dict) {
-
-    PREPARE_GC_COUNTS(gcCounts);
-
-
-    pfds_sequence* e = (pfds_sequence*) dict->catenable->mempty();
-    ASSERT_ONE_REF(e);
-    pfds_object* last = (pfds_object*) -1;
-    pfds_sequence* init = (pfds_sequence*) -1;
-    CU_ASSERT_FALSE(pfds_sequence_popBack(&init, &last, e));
-    CU_ASSERT_EQUAL(init, NULL);
-    CU_ASSERT_EQUAL(last, NULL);
-
-    ASSERT_GC_COUNTS(gcCounts, 0, 0);
-}
-
-void test_gc_sequence_split(pfds_sequencevtable* dict) {
-
-    PREPARE_GC_COUNTS(gcCounts);
-
-    pfds_sequence* xs = mkTestValue_sequence(dict, 3);
-    CU_ASSERT_EQUAL(pfds_sequence_size(xs), 3);
-
-    pfds_sequence* init = (pfds_sequence*) -1;
-    pfds_object* link = (pfds_object*) -1;
-    pfds_sequence* tail = (pfds_sequence*) -1;
-
-    CU_ASSERT(pfds_sequence_split(&init, &link, &tail, xs, 1));
-    CU_ASSERT_NOT_EQUAL(init, (void*) -1);
-    CU_ASSERT_NOT_EQUAL(link, (void*) -1);
-    CU_ASSERT_NOT_EQUAL(tail, (void*) -1);
-
-    ASSERT_ONE_REF(init);
-    ASSERT_ONE_REF(link);
-    ASSERT_ONE_REF(tail);
-
-    pfds_release(init);
-    pfds_release(link);
-    pfds_release(tail);
-
-    ASSERT_GC_COUNTS(gcCounts, 0, 0);
-}
-
-void test_gc_sequence_split1(pfds_sequencevtable* dict) {
-
-    PREPARE_GC_COUNTS(gcCounts);
-
-    pfds_sequence* xs = mkTestValue_sequence(dict, 3);
-    CU_ASSERT_EQUAL(pfds_sequence_size(xs), 3);
-
-    pfds_object* link = (pfds_object*) -1;
-    pfds_sequence* tail = (pfds_sequence*) -1;
-
-    CU_ASSERT(pfds_sequence_split(NULL, &link, &tail, xs, 1));
-    CU_ASSERT_NOT_EQUAL(link, (void*) -1);
-    CU_ASSERT_NOT_EQUAL(tail, (void*) -1);
-
-    ASSERT_ONE_REF(link);
-    ASSERT_ONE_REF(tail);
-
-    pfds_release(link);
-    pfds_release(tail);
-
-    ASSERT_GC_COUNTS(gcCounts, 0, 0);
-}
-
-void test_gc_sequence_split2(pfds_sequencevtable* dict) {
-
-    PREPARE_GC_COUNTS(gcCounts);
-
-    pfds_sequence* xs = mkTestValue_sequence(dict, 3);
-    CU_ASSERT_EQUAL(pfds_sequence_size(xs), 3);
-
-    pfds_sequence* init = (pfds_sequence*) -1;
-    pfds_sequence* tail = (pfds_sequence*) -1;
-
-    CU_ASSERT(pfds_sequence_split(&init, NULL, &tail, xs, 1));
-    CU_ASSERT_NOT_EQUAL(init, (void*) -1);
-    CU_ASSERT_NOT_EQUAL(tail, (void*) -1);
-
-    ASSERT_ONE_REF(init);
-    ASSERT_ONE_REF(tail);
-
-    pfds_release(init);
-    pfds_release(tail);
-
-    ASSERT_GC_COUNTS(gcCounts, 0, 0);
-}
-
-void test_gc_sequence_split3(pfds_sequencevtable* dict) {
-
-    PREPARE_GC_COUNTS(gcCounts);
-
-    pfds_sequence* xs = mkTestValue_sequence(dict, 3);
-    CU_ASSERT_EQUAL(pfds_sequence_size(xs), 3);
-
-    pfds_sequence* init = (pfds_sequence*) -1;
-    pfds_object* link = (pfds_object*) -1;
-
-    CU_ASSERT(pfds_sequence_split(&init, &link, NULL, xs, 1));
-    CU_ASSERT_NOT_EQUAL(init, (void*) -1);
-    CU_ASSERT_NOT_EQUAL(link, (void*) -1);
-
-    ASSERT_ONE_REF(init);
-    ASSERT_ONE_REF(link);
-
-    pfds_release(init);
-    pfds_release(link);
-
-    ASSERT_GC_COUNTS(gcCounts, 0, 0);
-}
-
-void test_gc_sequence_mappend_1(pfds_sequencevtable* dict) {
-    // this test exists to exercise a specific corner case in FingerTree_app3
-
-    PREPARE_GC_COUNTS(gcCounts);
-
-    pfds_sequence* xs = mkTestValue_sequence(dict, 3);
-    pfds_sequence* ys = mkTestValue_sequence(dict, 1);
-    CU_ASSERT_EQUAL(pfds_sequence_size(xs), 3);
-    CU_ASSERT_EQUAL(pfds_sequence_size(ys), 1);
-
-    xs = pfds_sequence_mappend(xs, ys);
-    pfds_release(xs);
-
-    ASSERT_GC_COUNTS(gcCounts, 0, 0);
-}
-void test_gc_sequence_mappend_2(pfds_sequencevtable* dict) {
-    // this test exists to exercise a specific corner case in FingerTree_app3
-
-    PREPARE_GC_COUNTS(gcCounts);
-
-    pfds_sequence* xs = mkTestValue_sequence(dict, 2);
-    xs = pfds_sequence_pushBack(xs, (pfds_object*) mkTestValue_Double(NULL, 10));
-    xs = pfds_sequence_pushBack(xs, (pfds_object*) mkTestValue_Double(NULL, 11));
-    xs = pfds_sequence_pushBack(xs, (pfds_object*) mkTestValue_Double(NULL, 12));
-
-    pfds_sequence* ys = mkTestValue_sequence(dict, 2);
-    ys = pfds_sequence_pushFront((pfds_object*) mkTestValue_Double(NULL, 10), ys);
-    ys = pfds_sequence_pushFront((pfds_object*) mkTestValue_Double(NULL, 11), ys);
-    ys = pfds_sequence_pushFront((pfds_object*) mkTestValue_Double(NULL, 12), ys);
-
-    xs = pfds_sequence_mappend(xs, ys);
-    pfds_release(xs);
-
-    ASSERT_GC_COUNTS(gcCounts, 0, 0);
-}
-void test_gc_sequence_mappend_4(pfds_sequencevtable* dict) {
-    // this test exists to exercise a specific corner case in FingerTree_app3
-
-    PREPARE_GC_COUNTS(gcCounts);
-
-    pfds_sequence* xs = mkTestValue_sequence(dict, 2);
-    xs = pfds_sequence_pushBack(xs, (pfds_object*) mkTestValue_Double(NULL, 10));
-
-    pfds_sequence* ys = mkTestValue_sequence(dict, 2);
-    ys = pfds_sequence_pushFront((pfds_object*) mkTestValue_Double(NULL, 10), ys);
-
-    xs = pfds_sequence_mappend(xs, ys);
-    pfds_release(xs);
-
-    ASSERT_GC_COUNTS(gcCounts, 0, 0);
-}
-void test_gc_sequence_mappend_3(pfds_sequencevtable* dict) {
-    // this test exists to exercise a specific corner case in FingerTree_app3
-
-    PREPARE_GC_COUNTS(gcCounts);
-
-    pfds_sequence* xs = mkTestValue_sequence(dict, 2);
-    xs = pfds_sequence_pushBack(xs, (pfds_object*) mkTestValue_Double(NULL, 10));
-    xs = pfds_sequence_pushBack(xs, (pfds_object*) mkTestValue_Double(NULL, 11));
-
-    pfds_sequence* ys = mkTestValue_sequence(dict, 2);
-    ys = pfds_sequence_pushFront((pfds_object*) mkTestValue_Double(NULL, 10), ys);
-    ys = pfds_sequence_pushFront((pfds_object*) mkTestValue_Double(NULL, 11), ys);
-
-    xs = pfds_sequence_mappend(xs, ys);
-    pfds_release(xs);
-
-    ASSERT_GC_COUNTS(gcCounts, 0, 0);
-}
-void test_gc_sequence_mpow(pfds_sequencevtable* dict) {
-    PREPARE_GC_COUNTS(gcCounts);
-
-    pfds_sequence* xs = mkTestValue_sequence(dict, 3);
-    CU_ASSERT_EQUAL(pfds_sequence_size(xs), 3);
-
-    pfds_retain(xs);
-    xs = pfds_sequence_mappend(xs, xs);
-    ASSERT_ONE_REF(xs);
-    pfds_release(xs);
-
-    ASSERT_GC_COUNTS(gcCounts, 0, 0);
-}
-
-void test_gc_sequence_isEmpty(pfds_sequencevtable* dict) {
-
-    PREPARE_GC_COUNTS(gcCounts);
-
-    pfds_sequence* xs = mkTestValue_sequence(dict, 3);
-    CU_ASSERT_FALSE(pfds_sequence_isEmpty(xs));
-    ASSERT_ONE_REF(xs);
-    pfds_release(xs);
-
-    ASSERT_GC_COUNTS(gcCounts, 0, 0);
-}
-
-void test_gc_sequence_concatEmpty(pfds_sequencevtable* dict) {
-
-    PREPARE_GC_COUNTS(gcCounts);
-
-    pfds_sequence* elts[0] = {
-    };
-    pfds_object* ys = dict->catenable->concat(0, (pfds_object**) elts);
-    ASSERT_ONE_REF(ys);
-    pfds_release(ys);
-
-    ASSERT_GC_COUNTS(gcCounts, 0, 0);
-}
-
-void test_gc_sequence_concat(pfds_sequencevtable* dict) {
-
-    PREPARE_GC_COUNTS(gcCounts);
-
-    pfds_sequence* elts[3] = {
-        mkTestValue_sequence(dict, 1),
-        mkTestValue_sequence(dict, 2),
-        mkTestValue_sequence(dict, 3),
-    };
-    pfds_object* ys = dict->catenable->concat(3, (pfds_object**) elts);
-    ASSERT_ONE_REF(ys);
-    pfds_release(ys);
-
-    ASSERT_GC_COUNTS(gcCounts, 0, 0);
-}
-
-void test_gc_sequence_reduceRight(pfds_sequencevtable* dict) {
-
-    PREPARE_GC_COUNTS(gcCounts);
-
-    pfds_sequence* xs = mkTestValue_sequence(dict, 3);
-    pfds_object* y = pfds_sequence_reduceRight((binop) test_binop, NULL,
-            xs,
-            (pfds_object*) pfds_String_fromCstring("ROOT"));
-    ASSERT_ONE_REF(y);
-
-    pfds_release(y);
-
-    ASSERT_GC_COUNTS(gcCounts, 0, 0);
-}
-void test_gc_sequence_reduceLeft(pfds_sequencevtable* dict) {
-
-    PREPARE_GC_COUNTS(gcCounts);
-
-    pfds_sequence* xs = mkTestValue_sequence(dict, 3);
-    pfds_object* y = pfds_sequence_reduceLeft((binop) test_binop, NULL,
-            (pfds_object*) pfds_String_fromCstring("ROOT"),
-            xs);
-    ASSERT_ONE_REF(y);
-
-    pfds_release(y);
-
-    ASSERT_GC_COUNTS(gcCounts, 0, 0);
-}
-
-struct benchEvent {
-    struct timespec realtime;
-    struct timespec monotonic;
-    struct timespec cpu;
-};
-
-struct benchRun {
-    struct benchEvent start;
-    struct benchEvent end;
-};
-
-struct benchState {
-    int iterations;
-    size_t n;
-    SplitMix64 gen;
-    struct benchEvent setup;
-    struct benchRun *runs;
-    struct benchEvent teardown;
-    struct benchEvent done;
-};
 
 int benchGetEventTime(struct benchEvent* evt) {
     int res = 0;
@@ -1502,8 +856,6 @@ void writeBenchmarkHeader(FILE* stream) {
     fprintf(stream, ",\"%s\"\n", "cpu");
 }
 
-typedef void (*benchFn)(struct benchState *, void*);
-
 void runBenchmark(struct benchConfig *conf, benchFn benchFn, void* ud, FILE* results) {
     struct benchState bs;
     bs.iterations = conf->iterations;
@@ -1530,41 +882,6 @@ void runBenchmark(struct benchConfig *conf, benchFn benchFn, void* ud, FILE* res
 
 }
 
-/** exercise a list of size n by looking up 100 elements  */
-void bench_lookup(struct benchState *bs, const pfds_objectvtable *vtable) {
-    pfds_object** fixture = (pfds_object**) calloc(sizeof(pfds_object*), bs->n);
-    for (size_t i = 0 ; i < bs->n ; i++) {
-        fixture[i] = (pfds_object*) pfds_UInt64_new(i);
-    }
-    pfds_sequence* xs0 = vtable->sequence->fromArray(bs->n, fixture);
-
-    for (int iter = 0; iter < bs->iterations; iter++) {
-
-        pfds_sequence* xs = xs0;
-        pfds_retain(xs);
-
-        bench_begin(bs, iter);
-        for (int i = 0; i < 100; i++) {
-            int idx = SplitMix64_nextInt64Range(&bs->gen, 0, bs->n);
-            // x is lent for the lifetime of xs.
-            pfds_object *x = pfds_sequence_get(xs, idx);
-            if ( x == NULL
-                    || ( x != NULL
-                        && x != fixture[idx]
-                        && pfds_cmp(x, fixture[idx]) != PFDS_EQ)
-                    ) {
-                CU_FAIL_FATAL("get returned incorrect element");
-            }
-        }
-        bench_end(bs, iter);
-
-        pfds_release(xs);
-    }
-    pfds_release(xs0);
-
-    free(fixture);
-
-}
 
 void test_treelist_lookup_1 (void) {
 
@@ -1703,173 +1020,89 @@ void test_treelist_lookup_2 (void) {
 
 }
 
-/** exercise a fifo queue of size n by shifting 1000 elements from the back to front */
-void bench_queueLeft(struct benchState *bs, const pfds_objectvtable *vtable) {
-    pfds_object** fixture = (pfds_object**) calloc(sizeof(pfds_object*), bs->n);
-    for (size_t i = 0 ; i < bs->n ; i++) {
-        fixture[i] = (pfds_object*) pfds_Double_new(SplitMix64_nextDouble(&bs->gen));
+void classyProp(
+        struct testModule* m,
+        const char* nm,
+        const pfds_objectvtable *dict,
+        int iterations,
+        int (*propFn)(const pfds_objectvtable*, ...),
+        const CCHECK_Gen ** gens) {
+    size_t nargs = 0;
+    if (gens != NULL) {
+        for (; gens[nargs] != NULL; nargs++)
+            ;
     }
-    pfds_sequence* xs0 = vtable->sequence->fromArray(bs->n, fixture);
-    free(fixture);
+    struct testProperty* tp = (struct testProperty*) malloc(sizeof(struct testProperty));
+    tp->name = nm;
+    tp->typename = dict->typename;
+    tp->iterations = iterations;
+    tp->propFn = (CCHECK_PROP) propFn;
+    tp->propData = (void*) dict;
+    tp->nargs = nargs;
+    tp->gens = gens;
 
-
-    for (int iter = 0; iter < bs->iterations; iter++) {
-        pfds_sequence* xs = xs0;
-        pfds_retain(xs);
-
-        bench_begin(bs, iter);
-        for (int i = 0; i < 1000; i++) {
-            xs = pfds_sequence_pushBack(
-                    xs,
-                    (pfds_object*) pfds_Double_new(SplitMix64_nextDouble(&bs->gen)));
-            if (!pfds_sequence_popFront(NULL, &xs, xs)) {
-                CU_FAIL_FATAL("empty queue");
-            }
-        }
-
-        bench_end(bs, iter);
-
-        pfds_release(xs);
+    if (m->lastProp == NULL) {
+        m->testProperties = tp;
+        m->lastProp = tp;
+    } else {
+        assert(m->testProperties != NULL);
+        m->lastProp->nextProp = tp;
+        m->lastProp = tp;
     }
-
-
-    bench_teardown(bs);
-    pfds_release(xs0);
-
-}
-
-/** construct container of size n directly from an array of size n */
-void bench_fillFromArray(struct benchState *bs, pfds_objectvtable *vtable) {
-    pfds_object** fixture = (pfds_object**) calloc(sizeof(pfds_object*), bs->n);
-    for (size_t i = 0 ; i < bs->n ; i++) {
-        fixture[i] = (pfds_object*) pfds_Double_new(SplitMix64_nextDouble(&bs->gen));
-    }
-
-    for (int iter = 0; iter < bs->iterations; iter++) {
-        bench_begin(bs, iter);
-        for (size_t i = 0 ; i < bs->n ; i++) {
-            pfds_retain(fixture[i]);
-        }
-        pfds_sequence* xs = vtable->sequence->fromArray(bs->n, fixture);
-        bench_end(bs, iter);
-        pfds_release(xs);
-    }
-
-
-    bench_teardown(bs);
-    for (size_t i = 0 ; i < bs->n ; i++) {
-        pfds_release(fixture[i]);
-    }
-    free(fixture);
-
 }
 
 
-/** construct container of size n by pushing elements one at a time on the front */
-void bench_fillPushFront(struct benchState *bs, pfds_objectvtable *vtable) {
-    pfds_object** fixture = (pfds_object**) calloc(sizeof(pfds_object*), bs->n);
-    for (size_t i = 0 ; i < bs->n ; i++) {
-        fixture[i] = (pfds_object*) pfds_Double_new(SplitMix64_nextDouble(&bs->gen));
-    }
+void classyBenchmark(
+        struct testModule* m,
+        const char* nm,
+        const pfds_objectvtable *dict,
+        int min, int max,
+        void (*fn)(struct benchState*, const pfds_objectvtable*)) {
+    struct testBenchmark* tb = (struct testBenchmark*) malloc(sizeof(struct testBenchmark));
 
-    for (int iter = 0; iter < bs->iterations; iter++) {
-        bench_begin(bs, iter);
-        pfds_sequence* xs = (pfds_sequence*) vtable->catenable->mempty();
-        for (size_t i = 0 ; i < bs->n ; i++) {
-            pfds_retain(fixture[i]);
-            xs = pfds_sequence_pushFront(fixture[i], xs);
-        }
-        bench_end(bs, iter);
-        pfds_release(xs);
-    }
+    tb->name = nm;
+    tb->typename = dict->typename;
+    tb->minSize = min;
+    tb->maxSize = max;
+    tb->benchFn = (benchFn) fn;
+    tb->benchData = (void*) dict;
+    tb->nextBenchmark = NULL;
 
-
-    bench_teardown(bs);
-    for (size_t i = 0 ; i < bs->n ; i++) {
-        pfds_release(fixture[i]);
+    if (m->lastBenchmark == NULL) {
+        m->testBenchmarks = tb;
+        m->lastBenchmark = tb;
+    } else {
+        assert(m->testBenchmarks != NULL);
+        m->lastBenchmark->nextBenchmark = tb;
+        m->lastBenchmark = tb;
     }
-    free(fixture);
 
 }
 
-void bench_shuffle(struct benchState *bs, pfds_objectvtable *vtable) {
-    pfds_object** fixture = (pfds_object**) calloc(sizeof(pfds_object*), bs->n);
-    for (size_t i = 0 ; i < bs->n ; i++) {
-        fixture[i] = (pfds_object*) pfds_Double_new(SplitMix64_nextDouble(&bs->gen));
+void classyGCTest(
+        struct testModule* m,
+        const char* nm,
+        void (*fn)( const pfds_objectvtable*),
+        const pfds_objectvtable *dict) {
+    struct testGC * tg = (struct testGC*) malloc(sizeof(struct testGC));
+
+    tg->name = nm;
+    tg->typename = dict->typename;
+    tg->testFn = (CU_TestFunc1) fn;
+    tg->userData = (void*) dict;
+    tg->nextTestGC = NULL;
+
+    if (m->lastTestGC == NULL) {
+        m->testGC = tg;
+        m->lastTestGC = tg;
+    } else {
+        assert(m->testGC != NULL);
+        m->lastTestGC->nextTestGC = tg;
+        m->lastTestGC = tg;
     }
-    pfds_sequence* xs0 = vtable->sequence->fromArray(bs->n, fixture);
-    free(fixture);
-
-    for (int iter = 0; iter < bs->iterations; iter++) {
-        pfds_sequence* xs = xs0; pfds_retain(xs);
-        bench_begin(bs, iter);
-
-        pfds_sequence* ys;
-        pfds_object* z;
-        pfds_sequence* ws;
-
-        for (int i = 0; i < 100 ; i++) {
-            size_t pos = SplitMix64_nextInt64Range(&bs->gen, 0, bs->n);
-            CU_ASSERT(pfds_sequence_split(&ys, &z, &ws, xs, pos));
-            xs = pfds_sequence_mappend(ws, pfds_sequence_pushFront(z, ys));
-        }
-
-        bench_end(bs, iter);
-        pfds_release(xs);
-    }
-
-    bench_teardown(bs);
-    pfds_release(xs0);
-
 }
 
 
-/** construct container of size n by pushing elements one at a time on the back */
-void bench_fillPushBack(struct benchState *bs, pfds_objectvtable *vtable) {
-    pfds_object** fixture = (pfds_object**) calloc(sizeof(pfds_object*), bs->n);
-    for (size_t i = 0 ; i < bs->n ; i++) {
-        fixture[i] = (pfds_object*) pfds_Double_new(SplitMix64_nextDouble(&bs->gen));
-    }
-
-    for (int iter = 0; iter < bs->iterations; iter++) {
-        bench_begin(bs, iter);
-        pfds_sequence* xs = (pfds_sequence*) vtable->catenable->mempty();
-        for (size_t i = 0 ; i < bs->n ; i++) {
-            pfds_retain(fixture[i]);
-            xs = pfds_sequence_pushBack(xs, fixture[i]);
-        }
-        bench_end(bs, iter);
-        pfds_release(xs);
-    }
-
-
-    bench_teardown(bs);
-    for (size_t i = 0 ; i < bs->n ; i++) {
-        pfds_release(fixture[i]);
-    }
-    free(fixture);
-
-}
-
-
-struct benchmarkParams {
-    unsigned int minSize;
-    unsigned int maxSize;
-    const char* benchName;
-    const char* benchDescrption;
-
-};
-
-#define CLASSY_BENCHMARK(nm, dict, min, max, fn) { .name = nm, .typename = dict.typename, .minSize = min, .maxSize = max, .benchFn = (benchFn) fn, .benchData = (void*) &dict, }
-
-struct testBenchmark {
-    const char* name;
-    const char* typename;
-    unsigned int minSize;
-    unsigned int maxSize;
-    benchFn benchFn;
-    void* benchData;
-};
 
 
 void test_run_one_benchmark(struct testBenchmark* tb) {
@@ -1939,18 +1172,40 @@ struct nstring ssprintf(const char* format, ...) {
     return first_nstring->nstring;
 };
 
+void addTestModule(struct commonSuites cs, struct testModule testMod) {
+    for (struct testGC * tg = testMod.testGC ; tg != NULL; tg = tg->nextTestGC) {
+
+        CU_add_test_with(
+                cs.gcSuite,
+                ssprintf("%s/%s/%s", testMod.testModule, tg->name, tg->typename).buf,
+                (CU_TestFunc1) test_run_one_gc_test,
+                tg);
+    }
+    for (struct testProperty* tp = testMod.testProperties ; tp != NULL ; tp = tp->nextProp) {
+        CCHECK_add_prop_forAllArray_impl(
+                cs.propSuite,
+                tp->iterations,
+                0, 0, ssprintf("%s/%s/%s", testMod.testModule, tp->name, tp->typename).buf,
+                tp->propFn,
+                tp->propData,
+                tp->nargs,
+                (CCHECK_Gen**) tp->gens);
+    }
+    for (struct testBenchmark *bench = testMod.testBenchmarks; bench != NULL; bench = bench->nextBenchmark) {
+        CU_add_test_with(
+                cs.benchSuite,
+                ssprintf("%s/%s/%s", testMod.testModule, bench->name, bench->typename).buf,
+                (CU_TestFunc1) test_run_one_benchmark,
+                bench);
+    }
+}
+
 
 int main(int argc, char** argv)
 {
     SplitMix64_initialSeed();
 
     CU_initialize_registry();
-
-
-    CU_pSuite ccheckSuite = CU_add_suite("ccheck", 0, 0);
-    CCHECK_add_prop_forAll(ccheckSuite, 10, test_assoc_int, 3, &genInt, &genInt, &genInt);
-    // CCHECK_add_prop_forAll(suite, 10, test_lessthan_5, 1, &genInt);
-
 
     CU_pSuite validatorSuite = CU_add_suite("typedefs", 0, 0);
 
@@ -1998,53 +1253,53 @@ int main(int argc, char** argv)
         }
     }
 
-    struct gcSequenceMethods {
-        void (*testFn)(pfds_sequencevtable*);
-        const char* desc;
-    } gcSequenceMethods[] = {
-        { .testFn = test_gc_sequence_fromArray0, .desc = "fromArray/empty", },
-        { .testFn = test_gc_sequence_fromArray, .desc = "fromArray/nonEmpty", },
-        { .testFn = test_gc_sequence_fromArray2, .desc = "fromArray/dup", },
-        { .testFn = test_gc_sequence_fromArrayLoop, .desc = "fromArray/loop", },
-        { .testFn = test_gc_sequence_singleton, .desc = "singleton", },
+    // struct gcSequenceMethods {
+    //     void (*testFn)(pfds_sequencevtable*);
+    //     const char* desc;
+    // } gcSequenceMethods[] = {
+    //     // { .testFn = test_gc_sequence_fromArray0, .desc = "fromArray/empty", },
+    //     { .testFn = test_gc_sequence_fromArray, .desc = "fromArray/nonEmpty", },
+    //     { .testFn = test_gc_sequence_fromArray2, .desc = "fromArray/dup", },
+    //     { .testFn = test_gc_sequence_fromArrayLoop, .desc = "fromArray/loop", },
+    //     { .testFn = test_gc_sequence_singleton, .desc = "singleton", },
 
-        { .testFn = test_gc_sequence_popFront_empty, .desc = "popFront/empty", },
-        { .testFn = test_gc_sequence_popFront, .desc = "popFront/x1", },
-        { .testFn = test_gc_sequence_front_empty, .desc = "front/empty", },
-        { .testFn = test_gc_sequence_front, .desc = "front/x1", },
-        { .testFn = test_gc_sequence_pushFront, .desc = "pushFront/empty", },
+    //     { .testFn = test_gc_sequence_popFront_empty, .desc = "popFront/empty", },
+    //     { .testFn = test_gc_sequence_popFront, .desc = "popFront/x1", },
+    //     { .testFn = test_gc_sequence_front_empty, .desc = "front/empty", },
+    //     { .testFn = test_gc_sequence_front, .desc = "front/x1", },
+    //     { .testFn = test_gc_sequence_pushFront, .desc = "pushFront/empty", },
 
-        { .testFn = test_gc_sequence_popBack_empty, .desc = "popBack/empty", },
-        { .testFn = test_gc_sequence_popBack, .desc = "popBack/x1", },
-        { .testFn = test_gc_sequence_back_empty, .desc = "back/empty", },
-        { .testFn = test_gc_sequence_back, .desc = "back/x1", },
-        { .testFn = test_gc_sequence_pushBack, .desc = "pushBack/empty", },
+    //     { .testFn = test_gc_sequence_popBack_empty, .desc = "popBack/empty", },
+    //     { .testFn = test_gc_sequence_popBack, .desc = "popBack/x1", },
+    //     { .testFn = test_gc_sequence_back_empty, .desc = "back/empty", },
+    //     { .testFn = test_gc_sequence_back, .desc = "back/x1", },
+    //     { .testFn = test_gc_sequence_pushBack, .desc = "pushBack/empty", },
 
-        { .testFn = test_gc_sequence_get, .desc = "get", },
-        { .testFn = test_gc_sequence_getPastEnd, .desc = "get past end", },
+    //     { .testFn = test_gc_sequence_get, .desc = "get", },
+    //     { .testFn = test_gc_sequence_getPastEnd, .desc = "get past end", },
 
-        { .testFn = test_gc_sequence_insert, .desc = "insertBefore", },
-        { .testFn = test_gc_sequence_insertAfter, .desc = "insertAfter", },
-        { .testFn = test_gc_sequence_update, .desc = "update", },
-        { .testFn = test_gc_sequence_delete, .desc = "delete", },
+    //     { .testFn = test_gc_sequence_insert, .desc = "insertBefore", },
+    //     { .testFn = test_gc_sequence_insertAfter, .desc = "insertAfter", },
+    //     { .testFn = test_gc_sequence_update, .desc = "update", },
+    //     { .testFn = test_gc_sequence_delete, .desc = "delete", },
 
-        { .testFn = test_gc_sequence_reduceLeft, .desc = "reduceLeft", },
-        { .testFn = test_gc_sequence_reduceRight, .desc = "reduceRight", },
+    //     { .testFn = test_gc_sequence_reduceLeft, .desc = "reduceLeft", },
+    //     { .testFn = test_gc_sequence_reduceRight, .desc = "reduceRight", },
 
-        { .testFn = test_gc_sequence_split, .desc = "split/all", },
-        { .testFn = test_gc_sequence_split1, .desc = "split/nullInit", },
-        { .testFn = test_gc_sequence_split2, .desc = "split/nullLink", },
-        { .testFn = test_gc_sequence_split3, .desc = "split/nullTail", },
-        { .testFn = test_gc_sequence_mpow, .desc = "mappend/dup", },
-        { .testFn = test_gc_sequence_mappend_1, .desc = "mappend/e.1", },
-        { .testFn = test_gc_sequence_mappend_2, .desc = "mappend/4.4", },
-        { .testFn = test_gc_sequence_mappend_3, .desc = "mappend/3.3", },
-        { .testFn = test_gc_sequence_mappend_4, .desc = "mappend/2.2", },
-        { .testFn = test_gc_sequence_concat, .desc = "concat", },
-        { .testFn = test_gc_sequence_concatEmpty, .desc = "concat/empty", },
-        { .testFn = test_gc_sequence_isEmpty, .desc = "isEmpty", },
-        { 0 }
-    };
+    //     { .testFn = test_gc_sequence_split, .desc = "split/all", },
+    //     { .testFn = test_gc_sequence_split1, .desc = "split/nullInit", },
+    //     { .testFn = test_gc_sequence_split2, .desc = "split/nullLink", },
+    //     { .testFn = test_gc_sequence_split3, .desc = "split/nullTail", },
+    //     { .testFn = test_gc_sequence_mpow, .desc = "mappend/dup", },
+    //     { .testFn = test_gc_sequence_mappend_1, .desc = "mappend/e.1", },
+    //     { .testFn = test_gc_sequence_mappend_2, .desc = "mappend/4.4", },
+    //     { .testFn = test_gc_sequence_mappend_3, .desc = "mappend/3.3", },
+    //     { .testFn = test_gc_sequence_mappend_4, .desc = "mappend/2.2", },
+    //     { .testFn = test_gc_sequence_concat, .desc = "concat", },
+    //     { .testFn = test_gc_sequence_concatEmpty, .desc = "concat/empty", },
+    //     { .testFn = test_gc_sequence_isEmpty, .desc = "isEmpty", },
+    //     { 0 }
+    // };
 
     struct sequenceInstance {
         const pfds_objectvtable* vtable;
@@ -2055,15 +1310,15 @@ int main(int argc, char** argv)
         { 0 }
     };
 
-    for (size_t j = 0; sequenceInstance[j].vtable ; j++) {
-        for(size_t i = 0 ; gcSequenceMethods[i].testFn ; i++) {
-            CU_add_test_with(
-                    gcSuite,
-                    ssprintf("%s/%s", sequenceInstance[j].vtable->typename, gcSequenceMethods[i].desc).buf,
-                    (CU_TestFunc1) gcSequenceMethods[i].testFn,
-                    (void*) sequenceInstance[j].vtable->sequence);
-        }
-    }
+    // for (size_t j = 0; sequenceInstance[j].vtable ; j++) {
+    //     for(size_t i = 0 ; gcSequenceMethods[i].testFn ; i++) {
+    //         CU_add_test_with(
+    //                 gcSuite,
+    //                 ssprintf("%s/%s", sequenceInstance[j].vtable->typename, gcSequenceMethods[i].desc).buf,
+    //                 (CU_TestFunc1) gcSequenceMethods[i].testFn,
+    //                 (void*) sequenceInstance[j].vtable->sequence);
+    //     }
+    // }
 
 
     // TODO: actual property testing, mkValue stuff should be a real generator,
@@ -2126,43 +1381,43 @@ int main(int argc, char** argv)
     CU_add_test_with(miscSuite, "test of sequence/LinkedList", (CU_TestFunc1) test_sequence, (void*) pfds_LinkedList_vtable.sequence);
     CU_add_test_with(miscSuite, "test of sequence/TreeList", (CU_TestFunc1) test_sequence, (void*) pfds_TreeList_vtable.sequence);
 
-    CCHECK_add_prop(miscSuite, "test props imperatively", NULL, 10, imperative_prop, NULL);
+
+    // // benchmark values are chosen here to run very quickly in an ordinary run
+    // // with the default size multiplier of 1.0, but also all finish in max a
+    // // few seconds each with whatever options are specified in `make bench`.
+    // // pathologically bad benchmarks should only be allowed to run just long
+    // // enough to show that they are pathological in the benchmark graphs.
+    // struct testBenchmark testBenchmarks[] = {
+    //     CLASSY_BENCHMARK("lookup", pfds_ArrayList_vtable,   10, 10000, bench_lookup),
+    //     CLASSY_BENCHMARK("lookup", pfds_TreeList_vtable,   10, 10000, bench_lookup),
+    //     CLASSY_BENCHMARK("queueLeft", pfds_TreeList_vtable,   10, 10000, bench_queueLeft),
+    //     CLASSY_BENCHMARK("queueLeft", pfds_ArrayList_vtable,  10, 2000, bench_queueLeft),
+    //     CLASSY_BENCHMARK("queueLeft", pfds_LinkedList_vtable,   10, 1000, bench_queueLeft),
+    //     CLASSY_BENCHMARK("fillFromArray", pfds_TreeList_vtable,   10, 10000, bench_fillFromArray),
+    //     CLASSY_BENCHMARK("fillFromArray", pfds_LinkedList_vtable, 10, 10000, bench_fillFromArray),
+    //     CLASSY_BENCHMARK("fillFromArray", pfds_ArrayList_vtable,  100, 100000, bench_fillFromArray),
+    //     CLASSY_BENCHMARK("fillPushFront", pfds_TreeList_vtable, 10, 10000, bench_fillPushFront),
+    //     CLASSY_BENCHMARK("fillPushFront", pfds_LinkedList_vtable, 10, 10000, bench_fillPushFront),
+    //     CLASSY_BENCHMARK("fillPushFront", pfds_ArrayList_vtable, 10, 1000, bench_fillPushFront),
+    //     CLASSY_BENCHMARK("fillPushBack", pfds_TreeList_vtable, 10, 10000, bench_fillPushBack),
+    //     CLASSY_BENCHMARK("fillPushBack", pfds_LinkedList_vtable, 10, 500, bench_fillPushBack),
+    //     CLASSY_BENCHMARK("fillPushBack", pfds_ArrayList_vtable, 10, 1000, bench_fillPushBack),
+    //     CLASSY_BENCHMARK("shuffle", pfds_ArrayList_vtable, 10, 1000, bench_shuffle),
+    //     CLASSY_BENCHMARK("shuffle", pfds_LinkedList_vtable, 10, 250, bench_shuffle),
+    //     CLASSY_BENCHMARK("shuffle", pfds_TreeList_vtable, 10, 10000, bench_shuffle),
+    //     { 0 },
+    // };
 
 
-    // benchmark values are chosen here to run very quickly in an ordinary run
-    // with the default size multiplier of 1.0, but also all finish in max a
-    // few seconds each with whatever options are specified in `make bench`.
-    // pathologically bad benchmarks should only be allowed to run just long
-    // enough to show that they are pathological in the benchmark graphs.
-    struct testBenchmark testBenchmarks[] = {
-        CLASSY_BENCHMARK("lookup", pfds_ArrayList_vtable,   10, 10000, bench_lookup),
-        CLASSY_BENCHMARK("lookup", pfds_TreeList_vtable,   10, 10000, bench_lookup),
-        CLASSY_BENCHMARK("queueLeft", pfds_TreeList_vtable,   10, 10000, bench_queueLeft),
-        CLASSY_BENCHMARK("queueLeft", pfds_ArrayList_vtable,  10, 2000, bench_queueLeft),
-        CLASSY_BENCHMARK("queueLeft", pfds_LinkedList_vtable,   10, 1000, bench_queueLeft),
-        CLASSY_BENCHMARK("fillFromArray", pfds_TreeList_vtable,   10, 10000, bench_fillFromArray),
-        CLASSY_BENCHMARK("fillFromArray", pfds_LinkedList_vtable, 10, 10000, bench_fillFromArray),
-        CLASSY_BENCHMARK("fillFromArray", pfds_ArrayList_vtable,  100, 100000, bench_fillFromArray),
-        CLASSY_BENCHMARK("fillPushFront", pfds_TreeList_vtable, 10, 10000, bench_fillPushFront),
-        CLASSY_BENCHMARK("fillPushFront", pfds_LinkedList_vtable, 10, 10000, bench_fillPushFront),
-        CLASSY_BENCHMARK("fillPushFront", pfds_ArrayList_vtable, 10, 1000, bench_fillPushFront),
-        CLASSY_BENCHMARK("fillPushBack", pfds_TreeList_vtable, 10, 10000, bench_fillPushBack),
-        CLASSY_BENCHMARK("fillPushBack", pfds_LinkedList_vtable, 10, 500, bench_fillPushBack),
-        CLASSY_BENCHMARK("fillPushBack", pfds_ArrayList_vtable, 10, 1000, bench_fillPushBack),
-        CLASSY_BENCHMARK("shuffle", pfds_ArrayList_vtable, 10, 1000, bench_shuffle),
-        CLASSY_BENCHMARK("shuffle", pfds_LinkedList_vtable, 10, 250, bench_shuffle),
-        CLASSY_BENCHMARK("shuffle", pfds_TreeList_vtable, 10, 10000, bench_shuffle),
-        { 0 },
+    struct commonSuites cs = {
+        .validatorSuite = validatorSuite,
+        .propSuite = propSuite,
+        .miscSuite = miscSuite,
+        .benchSuite = CU_add_suite("bench", 0, 0),
+        .gcSuite = gcSuite,
     };
 
-    CU_pSuite benchSuite = CU_add_suite("bench", 0, 0);
-    for (int i = 0 ; testBenchmarks[i].benchFn  ; i++) {
-        CU_add_test_with(
-                benchSuite,
-                ssprintf("%s/%s", testBenchmarks[i].name, testBenchmarks[i].typename).buf,
-                (CU_TestFunc1) test_run_one_benchmark,
-                &testBenchmarks[i]);
-    }
+    addTestModule(cs, getTestSequenceModule());
 
 
 

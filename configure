@@ -65,4 +65,6 @@ EOF
         ;;
 esac
 
+generateMakefileInc > Makefile.inc
+
 # vim: set syntax=bash sw=4 ts=4 et :

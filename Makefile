@@ -1,3 +1,4 @@
+-include Makefile.inc
 
 
 VPATH = ccheck:src:test
@@ -28,7 +29,7 @@ config.status :
 	@echo "run ./configure first"
 	@exit 1
 
-config.inc.sh : config.status configure configure.inc
+Makefile.inc config.inc.sh : config.status configure configure.inc
 	bash config.status
 
 $(OBJS_PFDS) : pfds/pfds-intl.h

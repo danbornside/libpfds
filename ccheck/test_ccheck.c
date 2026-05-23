@@ -50,7 +50,7 @@ void test_props_imperatively(void) {
 }
 
 
-CU_BOOL prop_assoc_int(int a, int b, int c) {
+CU_BOOL prop_assoc_int(void*, int a, int b, int c) {
     return (a + b) + c == a + (b + c);
 }
 
@@ -59,26 +59,26 @@ CU_BOOL prop_assoc_double_naive(double a, double b, double c) {
 }
 
 // addition of doubles is not exact associative.
-CU_BOOL prop_assoc_double(double a, double b, double c) {
+CU_BOOL prop_assoc_double(void*, double a, double b, double c) {
     double l = (a + b) + c;
     double r = a + (b + c);
     double e = l - r;
     return fabs(e) <= DBL_EPSILON;
 }
 
-CU_BOOL prop_const_int(int a) {
+CU_BOOL prop_const_int(void* ud, int a) {
     return a == 5;
 }
 
-CU_BOOL prop_const_double(double a) {
+CU_BOOL prop_const_double(void* ud, double a) {
     return a == 5;
 }
 
-CU_BOOL prop_range_int(int a) {
+CU_BOOL prop_range_int(void*, int a) {
     return a >= 5 && a < 10;
 }
 
-CU_BOOL prop_range_double(int a) {
+CU_BOOL prop_range_double(void*, int a) {
     return a >= 5 && a < 10;
 }
 
@@ -86,7 +86,7 @@ CU_BOOL prop_range_double(int a) {
 void test_assoc_double_examples(void) {
     double a = 6.38139211535037054e-01, b = 7.69100348964892988e-01, c = 5.33345631684747357e-02;
     CU_ASSERT_FALSE(prop_assoc_double_naive(a, b, c));
-    CU_ASSERT(prop_assoc_double(a, b, c));
+    CU_ASSERT(prop_assoc_double(NULL, a, b, c));
 }
 
 void test_genSeries(CCHECK_Context *ctx, void* userData) {
@@ -122,13 +122,13 @@ int main(int argc, char** argv) {
     CU_initialize_registry();
     CU_pSuite ccheckSuite = CU_add_suite("ccheck", 0, 0);
 
-    CCHECK_add_prop_forAll(ccheckSuite, 10, prop_assoc_int, 3, &genInt, &genInt, &genInt);
-    CCHECK_add_prop_forAll(ccheckSuite, 10, prop_assoc_double, 3, &genDouble, &genDouble, &genDouble);
+    CCHECK_add_prop_forAll(ccheckSuite, 10, prop_assoc_int, NULL, 3, &genInt, &genInt, &genInt);
+    CCHECK_add_prop_forAll(ccheckSuite, 10, prop_assoc_double, NULL, 3, &genDouble, &genDouble, &genDouble);
 
-    CCHECK_add_prop_forAll(ccheckSuite, 10, prop_const_int, 1, genIntConstant(5));
-    CCHECK_add_prop_forAll(ccheckSuite, 10, prop_const_double, 1, genDoubleConstant(5));
-    CCHECK_add_prop_forAll(ccheckSuite, 10, prop_range_int, 1, genIntRange(5, 10));
-    CCHECK_add_prop_forAll(ccheckSuite, 10, prop_range_double, 1, genDoubleRange(5, 10));
+    CCHECK_add_prop_forAll(ccheckSuite, 10, prop_const_int, NULL, 1, genIntConstant(5));
+    CCHECK_add_prop_forAll(ccheckSuite, 10, prop_const_double, NULL, 1, genDoubleConstant(5));
+    CCHECK_add_prop_forAll(ccheckSuite, 10, prop_range_int, NULL, 1, genIntRange(5, 10));
+    CCHECK_add_prop_forAll(ccheckSuite, 10, prop_range_double, NULL, 1, genDoubleRange(5, 10));
 
     CU_add_test(ccheckSuite, "imperatively", test_props_imperatively);
 

@@ -16,4 +16,5 @@ vgcore.*
 /src/pfds/pfds-intl.h
 /config.status
 /config.inc.sh
+/Makefile.inc
 /builddocs/*

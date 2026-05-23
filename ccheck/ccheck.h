@@ -27,8 +27,36 @@
 #define PROP_COUNTEREXAMPLE CU_FALSE
 #define PROP_SAT CU_TRUE
 
-#define CCHECK_add_prop_forAll(pSuite, iterations, fn, nargs, ...) \
-    CCHECK_add_prop_forall_impl(pSuite, iterations, __FILE__, __LINE__ ,#fn, (CCHECK_PROP) fn, nargs, __VA_ARGS__)
+/** add a test that checks a simple property
+ *
+ * @param pSuite      Test suite to which to add new test (non-NULL).
+ * @param iterations  number of times the property should be checked with generated inputs before accepting.
+ * @param propFn      Function to call when running the test (non-NULL).
+ * @param userData    extra argument passed to propFn
+ * @param nargs       the number of generators that follow
+ * @param ...         generators for the arguments to the test function.  They
+ *                    must exactly match the number and type of arguments to propFn
+ * @return A pointer to the newly-created test (NULL if creation failed)
+ * @see CU_add_test
+ */
+#define CCHECK_add_prop_forAll(pSuite, iterations, propFn, userData, nargs, ...) \
+    CCHECK_add_prop_forAll_impl(pSuite, iterations, __FILE__, __LINE__ ,#propFn, (CCHECK_PROP) propFn, userData, nargs, __VA_ARGS__)
+
+/** add a test that checks a simple property
+ *
+ * @param pSuite      Test suite to which to add new test (non-NULL).
+ * @param iterations  number of times the property should be checked with generated inputs before accepting.
+ * @param propFn      Function to call when running the test (non-NULL).
+ * @param userData    extra argument passed to propFn
+ * @param nargs       the number of generators that follow
+ * @param gens        generators for the arguments to the test function.  They
+ *                    must exactly match the number and type of arguments to propFn.
+ *                    the array lifetime must be long enough for the test to eventually run.
+ * @return A pointer to the newly-created test (NULL if creation failed)
+ * @see CU_add_test
+ */
+#define CCHECK_add_prop_forAllArray(pSuite, iterations, propFn, userData, nargs, gens) \
+    CCHECK_add_prop_forAllArray_impl(pSuite, iterations, __FILE__, __LINE__ ,#propFn, (CCHECK_PROP) propFn, userData, nargs, gens)
 
 /** Signature for a test function accepting one argument cast to void* */
 typedef void (*CU_TestFunc1)(void*);
@@ -37,7 +65,7 @@ typedef void (*CU_TestFunc1)(void*);
 CU_pTest CU_add_test_with(CU_pSuite pSuite, char * strName, CU_TestFunc1 pTestFunc, void* ud);
 
 
-typedef void (*CCHECK_PROP)(void);
+typedef int (*CCHECK_PROP)(void*, ...);
 
 /** a generator for random values of a particular type.  */
 typedef struct CCHECK_Gen {
@@ -112,28 +140,50 @@ CCHECK_Gen* genArray(CCHECK_Gen*);
  * @param lineNo      lineNumber
  * @param strName     Name for the new test case (non-NULL).
  * @param propFn      Function to call when running the test (non-NULL).
+ * @param userData    extra argument passed to propFn
  * @param nargs       the number of generators that follow
  * @param ...         generators for the arguments to the test function.  They
  *                    must exactly match the number and type of arguments to propFn
  * @return A pointer to the newly-created test (NULL if creation failed)
  * @see CU_add_test
  */
-extern CU_pTest CCHECK_add_prop_forall_impl(CU_pSuite pSuite, int iterations,
+extern CU_pTest CCHECK_add_prop_forAll_impl(CU_pSuite pSuite, int iterations,
         char* fileName, int lineNo, char * strName,
-        CCHECK_PROP propFn, size_t nargs, ...);
+        CCHECK_PROP propFn, void* userData, size_t nargs, ...);
+
+/** add a test that checks a simple property
+ *
+ * @param pSuite      Test suite to which to add new test (non-NULL).
+ * @param iterations  number of times the property should be checked with generated inputs before accepting.
+ * @param fileName    file name
+ * @param lineNo      lineNumber
+ * @param strName     Name for the new test case (non-NULL).
+ * @param propFn      Function to call when running the test (non-NULL).
+ * @param userData    extra argument passed to propFn
+ * @param nargs       the number of generators that follow
+ * @param gens        generators for the arguments to the test function.  They
+ *                    must exactly match the number and type of arguments to propFn.
+ *                    the array lifetime must be long enough for the test to eventually run.
+ * @return A pointer to the newly-created test (NULL if creation failed)
+ * @see CU_add_test
+ */
+extern CU_pTest CCHECK_add_prop_forAllArray_impl(CU_pSuite pSuite, int iterations,
+        char* fileName, int lineNo, char * strName,
+        CCHECK_PROP propFn, void* userData, size_t nargs, CCHECK_Gen* gens[]);
 
 
 typedef struct CCHECK_Context CCHECK_Context;
 
-extern void CCHECK_test_forall_impl(
+extern void CCHECK_test_forAll_impl(
     SplitMix64* seedGen,
     int iterations,
     int lineNo,
     char* fileName,
     char* strName,
     CCHECK_PROP propFn,
+    void* userData,
     size_t nargs,
-    struct CCHECK_Gen** gens);
+    CCHECK_Gen** gens);
 
 /** generate a value in an imperative property.  the value returend is a
  * pointer to the sample.  it is up to the caller of of CCHECK_generate to use

@@ -18,6 +18,7 @@
 #define TESTPFDS_HEADER_INCLUDED
 
 #include "pfds.h"
+#include "ccheck.h"
 
 #define ASSERT_PFDS_STRING_EQUALS(actual, expected) \
     { pfds_String* assertPfdsStringEquals_toString_##__LINE__ = pfds_toString(actual) ; \
@@ -88,9 +89,121 @@ struct propCatenableMethods {
     const char* desc;
 };
 
-struct testModule {
-    struct catenableInstance *catenableInstance;
-    struct propCatenableMethods *propCatenableMethods;
+struct testGC {
+    const char* name;
+    const char* typename;
+    CU_TestFunc1 testFn;
+    void* userData;
+    struct testGC* nextTestGC;
 };
+
+struct testProperty {
+    const char* name;
+    const char* typename;
+    unsigned int iterations;
+    CCHECK_PROP propFn;
+    void* propData;
+    size_t nargs;
+    const CCHECK_Gen ** gens;
+    struct testProperty* nextProp;
+};
+
+struct benchEvent {
+    struct timespec realtime;
+    struct timespec monotonic;
+    struct timespec cpu;
+};
+
+struct benchRun {
+    struct benchEvent start;
+    struct benchEvent end;
+};
+
+struct benchState {
+    int iterations;
+    size_t n;
+    SplitMix64 gen;
+    struct benchEvent setup;
+    struct benchRun *runs;
+    struct benchEvent teardown;
+    struct benchEvent done;
+};
+
+
+void bench_setup(struct benchState *bs);
+void bench_begin(struct benchState *bs, int iter);
+void bench_end(struct benchState *bs, int iter);
+void bench_teardown(struct benchState *bs);
+void bench_done(struct benchState *bs);
+
+typedef void (*benchFn)(struct benchState *, void*);
+
+#define CLASSY_BENCHMARK(nm, dict, min, max, fn) { .name = nm, .typename = dict.typename, .minSize = min, .maxSize = max, .benchFn = (benchFn) fn, .benchData = (void*) &dict, }
+
+
+struct testBenchmark {
+    const char* name;
+    const char* typename;
+    unsigned int minSize;
+    unsigned int maxSize;
+    benchFn benchFn;
+    void* benchData;
+    struct testBenchmark* nextBenchmark;
+};
+
+
+struct testModule {
+    // test category
+    const char* testModule;
+
+    // tests that verify correct/confignrming refcount behavior
+    struct testGC *testGC, *lastTestGC;
+
+    // property tests.
+    struct testProperty *testProperties, *lastProp;
+    struct testBenchmark *testBenchmarks, *lastBenchmark;
+};
+
+void classyProp(
+        struct testModule* m,
+        const char* nm,
+        const pfds_objectvtable *dict,
+        int iterations,
+        int (*propFn)(const pfds_objectvtable*, ...),
+        const CCHECK_Gen ** gens);
+
+void classyBenchmark(
+        struct testModule* m,
+        const char* nm,
+        const pfds_objectvtable *dict,
+        int min,
+        int max,
+        void (*fn)(struct benchState*, const pfds_objectvtable*));
+
+void classyGCTest(
+        struct testModule* m,
+        const char* nm,
+        void (*fn)( const pfds_objectvtable*),
+        const pfds_objectvtable *dict);
+
+
+// struct testModule newTestModule(const char* moduleName);
+
+struct commonSuites {
+    CU_pSuite validatorSuite;
+    CU_pSuite gcSuite;
+    CU_pSuite propSuite;
+    CU_pSuite miscSuite;
+    CU_pSuite benchSuite;
+};
+
+struct testModule getTestSequenceModule ();
+
+pfds_String * test_binop(void* ud, pfds_object* l, pfds_object * r);
+
+pfds_sequence* mkTestValue_sequence(const pfds_sequencevtable* vtable, int seed);
+pfds_String* mkTestValue_String(void* ud, int seed);
+pfds_Double* mkTestValue_Double(void* ud, int seed);
+pfds_UInt64* mkTestValue_UInt64(void* ud, int seed);
 
 #endif

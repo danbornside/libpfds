@@ -159,6 +159,7 @@ struct testForallClosure {
     SplitMix64 seedGen;
     struct CCHECK_Gen** gens;
     CCHECK_PROP propFn;
+    void* userData;
     char* strName;
     int lineNo;
     char* fileName;
@@ -175,9 +176,9 @@ struct testForallClosure {
 
 void testForAllHelper(ffi_cif* _cif, void* _ret, void* _args[], void* testForAllClosureVoidP) {
     struct testForallClosure* info = (struct testForallClosure*) testForAllClosureVoidP;
-    CCHECK_test_forall_impl(&info->seedGen, info->iterations,
+    CCHECK_test_forAll_impl(&info->seedGen, info->iterations,
          info->lineNo, info->fileName, info->strName,
-         info->propFn, info->nargs, info->gens);
+         info->propFn, info->userData, info->nargs, info->gens);
 }
 
 struct samplesList {
@@ -301,29 +302,32 @@ extern void CCHECK_test_prop_impl(
 }
 
 
-extern void CCHECK_test_forall_impl(
+extern void CCHECK_test_forAll_impl(
     SplitMix64* seedGen,
     int iterations,
     int lineNo,
     char* fileName,
     char* strName,
     CCHECK_PROP propFn,
+    void* userData,
     size_t nargs,
-    struct CCHECK_Gen** gens) {
+    CCHECK_Gen** gens) {
 
     ffi_cif cif;
-    ffi_type **ffi_args = (ffi_type**) calloc(sizeof(ffi_type*), nargs);
-    void** values = (void**) alloca(sizeof(void*) * nargs);
+    ffi_type **ffi_args = (ffi_type**) calloc(sizeof(ffi_type*), nargs + 1);
+    void** values = (void**) alloca(sizeof(void*) * (nargs + 1));
 
+    ffi_args[0] = &ffi_type_pointer;
     for (size_t argn = 0; argn < nargs; argn++) {
-        ffi_args[argn] = gens[argn]->genType;
+        ffi_args[argn + 1] = gens[argn]->genType;
     }
 
-    if (ffi_prep_cif(&cif, FFI_DEFAULT_ABI, nargs, &ffi_type_sint, ffi_args) != FFI_OK) panic("ffi setup failed");
+    if (ffi_prep_cif(&cif, FFI_DEFAULT_ABI, (nargs + 1), &ffi_type_sint, ffi_args) != FFI_OK) panic("ffi setup failed");
 
     // we do this step after the call to ffi_prep_cif in case any of the gen type fields need to be set up with a correct size.
+    values[0] = &userData;
     for (size_t argn = 0; argn < nargs; argn++) {
-        values[argn] = (void*) alloca(gens[argn]->genType->size);
+        values[argn + 1] = (void*) alloca(gens[argn]->genType->size);
     }
 
     ffi_arg rc;
@@ -336,9 +340,9 @@ extern void CCHECK_test_forall_impl(
         for (int argn = 0; argn < nargs; argn++) {
             SplitMix64 argGen;
             SplitMix64_split(&argGen, seedGen);
-            gens[argn]->generate(values[argn], gens[argn]->userData, size, &argGen);
+            gens[argn]->generate(values[argn+1], gens[argn]->userData, size, &argGen);
         }
-        ffi_call(&cif, propFn, &rc, values);
+        ffi_call(&cif, (void (*)(void)) propFn, &rc, values);
         switch (rc) {
             case PROP_COUNTEREXAMPLE:
                 char* buf;
@@ -347,13 +351,13 @@ extern void CCHECK_test_forall_impl(
                 fprintf(stream, "prop %s NOT SATISFIED with counterexample (", strName);
                 for (int argn = 0; argn < nargs; argn++) {
                     if (argn != 0) fputs(", ", stream);
-                    gens[argn]->show(stream, gens[argn]->userData, values[argn]);
+                    gens[argn]->show(stream, gens[argn]->userData, values[argn + 1]);
                 }
-                fputs(")\n", stream);
+                fprintf(stream, ") after %d iterations.\n", (iteration + 1));
                 fflush(stream);
 
                 for (int argn = 0; argn < nargs; argn++) {
-                    CCHECK_Gen_dispose(gens[argn], values[argn]);
+                    CCHECK_Gen_dispose(gens[argn], values[argn + 1]);
                 }
 
                 CU_assertImplementation(CU_FALSE, lineNo ,buf, fileName , "FORALL", CU_FALSE);
@@ -361,7 +365,7 @@ extern void CCHECK_test_forall_impl(
             case PROP_SAT:
             default:
                 for (int argn = 0; argn < nargs; argn++) {
-                    CCHECK_Gen_dispose(gens[argn], values[argn]);
+                    CCHECK_Gen_dispose(gens[argn], values[argn + 1]);
                 }
                 break;
         }
@@ -377,9 +381,29 @@ extern void CCHECK_test_forall_impl(
 
 }
 
-extern CU_pTest CCHECK_add_prop_forall_impl(CU_pSuite pSuite, int iterations,
+extern CU_pTest CCHECK_add_prop_forAll_impl(CU_pSuite pSuite, int iterations,
         char* fileName, int lineNo, char * strName,
-        CCHECK_PROP propFn, size_t nargs, ...) {
+        CCHECK_PROP propFn, void* userData, size_t nargs, ...) {
+
+    CCHECK_Gen** gens = (struct CCHECK_Gen**) calloc(sizeof(struct CCHECK_Gen*), nargs);
+
+    va_list args;
+    va_start(args, (int) nargs);
+    for(int i = 0; i < nargs; ++i) {
+        gens[i] = va_arg(args, struct CCHECK_Gen*);
+    }
+    va_end(args);
+
+    return CCHECK_add_prop_forAllArray_impl(
+            pSuite, iterations,
+            fileName, lineNo, strName,
+            propFn, userData, nargs, gens);
+}
+
+
+extern CU_pTest CCHECK_add_prop_forAllArray_impl(CU_pSuite pSuite, int iterations,
+        char* fileName, int lineNo, char * strName,
+        CCHECK_PROP propFn, void* userData, size_t nargs, CCHECK_Gen* gens[]) {
     // we need to use ffi twice.  we need to bundle everything into a closure
     // to match CU_TestFunc, and once we inside the callee of CU_add_test (ie,
     // the closure is called), we need to repeatedly use ffi_call to call the
@@ -394,15 +418,10 @@ extern CU_pTest CCHECK_add_prop_forall_impl(CU_pSuite pSuite, int iterations,
     info->strName = strName;
     info->iterations = iterations;
     info->nargs = nargs;
+    info->gens = gens;
     info->propFn = propFn;
+    info->userData = userData;
     SplitMix64_initDefault(&info->seedGen);
-    info->gens = (struct CCHECK_Gen**) calloc(sizeof(struct CCHECK_Gen*), nargs);
-    va_list args;
-    va_start(args, (int) nargs);
-    for(int i = 0; i < nargs; ++i) {
-        info->gens[i] = va_arg(args, struct CCHECK_Gen*);
-    }
-    va_end(args);
 
     static int setup = 0;
     static ffi_cif cif;

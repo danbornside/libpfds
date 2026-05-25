@@ -82,13 +82,13 @@ int prop_sequence_pushPopBack(const pfds_objectvtable *vtable, pfds_ArrayList * 
 int prop_sequence_pushFront(const pfds_objectvtable *vtable, pfds_object* x, pfds_ArrayList * xsArray);
 int prop_sequence_pushBack(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, pfds_object* x);
 
-int prop_sequence_get(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, pfds_UInt64* i);
-int prop_sequence_getGet(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, pfds_UInt64* i);
-int prop_sequence_getSplit(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, pfds_UInt64* i);
-int prop_sequence_insertBeforeGet(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, pfds_object* x, pfds_UInt64* i);
-int prop_sequence_insertAtGet(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, pfds_object* x, pfds_UInt64* i);
-int prop_sequence_updateGet(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, pfds_object* x, pfds_UInt64* i);
-int prop_sequence_delete(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, pfds_UInt64* i);
+int prop_sequence_get(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, size_t i);
+int prop_sequence_getGet(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, size_t i);
+int prop_sequence_getSplit(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, size_t i);
+int prop_sequence_insertBeforeGet(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, pfds_object* x, size_t i);
+int prop_sequence_insertAtGet(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, pfds_object* x, size_t i);
+int prop_sequence_updateGet(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, pfds_object* x, size_t i);
+int prop_sequence_delete(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, size_t i);
 
 int prop_sequence_toString(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray);
 
@@ -97,6 +97,7 @@ int prop_sequence_reduceRight(const pfds_objectvtable *vtable, pfds_ArrayList * 
 int prop_sequence_reverse(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray);
 
 int prop_sequence_cmpRefl(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray);
+int prop_sequence_cmpAntisym(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, pfds_ArrayList * ysArray);
 int prop_sequence_cmpLexicalShortest(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, pfds_ArrayList * ysArray);
 int prop_sequence_cmpLexicalPrefix(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, pfds_ArrayList * ysArray, pfds_ArrayList * zsArray);
 
@@ -182,6 +183,10 @@ struct testModule getTestSequenceModule () {
     // bit of reverse hungarian notation:
 
     CCHECK_Gen * genArrayDbls = genArrayList(&genBoxDouble);
+    CCHECK_Gen * genNEArrayDbls = genSize(
+            genArrayList(&genBoxDouble),
+            clampBelow,
+            (void*) 1);
 
     static CCHECK_Gen * gen_Dbls[3];
     gen_Dbls[0] = genArrayDbls;
@@ -199,19 +204,29 @@ struct testModule getTestSequenceModule () {
 
     static CCHECK_Gen * gen_Dbls_Int[3];
     gen_Dbls_Int[0] = genArrayDbls;
-    gen_Dbls_Int[1] = (CCHECK_Gen *) &genBoxUInt64;
+    gen_Dbls_Int[1] = (CCHECK_Gen *) &genUInt64;
     gen_Dbls_Int[2] = 0;
+
+    static CCHECK_Gen * gen_DblsNE_Int[3];
+    gen_DblsNE_Int[0] = genNEArrayDbls;
+    gen_DblsNE_Int[1] = (CCHECK_Gen *) &genUInt64;
+    gen_DblsNE_Int[2] = 0;
 
     static CCHECK_Gen * gen_Dbls_Dbl_Int[4];
     gen_Dbls_Dbl_Int[0] = genArrayDbls;
     gen_Dbls_Dbl_Int[1] = (CCHECK_Gen *) &genBoxDouble;
-    gen_Dbls_Dbl_Int[2] = (CCHECK_Gen *) &genBoxUInt64;
+    gen_Dbls_Dbl_Int[2] = (CCHECK_Gen *) &genUInt64;
     gen_Dbls_Dbl_Int[3] = 0;
 
     static CCHECK_Gen * gen_Dbls_Dbls[3];
     gen_Dbls_Dbls[0] = genArrayDbls;
     gen_Dbls_Dbls[1] = genArrayDbls;
     gen_Dbls_Dbls[2] = 0;
+
+    static CCHECK_Gen * gen_Dbls_DblsNE[3];
+    gen_Dbls_DblsNE[0] = genArrayDbls;
+    gen_Dbls_DblsNE[1] = genNEArrayDbls;
+    gen_Dbls_DblsNE[2] = 0;
 
     static CCHECK_Gen * gen_Dbls_Dbls_Dbls[4];
     gen_Dbls_Dbls_Dbls[0] = genArrayDbls;
@@ -238,11 +253,11 @@ struct testModule getTestSequenceModule () {
         { .propFn = (propSequenceFn) prop_sequence_pushBack, .desc = "prop_sequence_pushBack",
             .gens = (const CCHECK_Gen**) gen_Dbls_Dbl },
         { .propFn = (propSequenceFn) prop_sequence_get, .desc = "prop_sequence_get",
-            .gens = (const CCHECK_Gen**) gen_Dbls_Int },
+            .gens = (const CCHECK_Gen**) gen_DblsNE_Int },
         { .propFn = (propSequenceFn) prop_sequence_getGet, .desc = "prop_sequence_getGet",
-            .gens = (const CCHECK_Gen**) gen_Dbls_Int },
+            .gens = (const CCHECK_Gen**) gen_DblsNE_Int },
         { .propFn = (propSequenceFn) prop_sequence_getSplit, .desc = "prop_sequence_getSplit",
-            .gens = (const CCHECK_Gen**) gen_Dbls_Int },
+            .gens = (const CCHECK_Gen**) gen_DblsNE_Int },
         { .propFn = (propSequenceFn) prop_sequence_insertBeforeGet, .desc = "prop_sequence_insertBeforeGet",
             .gens = (const CCHECK_Gen**) gen_Dbls_Dbl_Int },
         { .propFn = (propSequenceFn) prop_sequence_insertAtGet, .desc = "prop_sequence_insertAtGet",
@@ -261,8 +276,10 @@ struct testModule getTestSequenceModule () {
             .gens = (const CCHECK_Gen**) gen_Dbls },
         { .propFn = (propSequenceFn) prop_sequence_cmpRefl, .desc = "prop_sequence_cmpRefl",
             .gens = (const CCHECK_Gen**) gen_Dbls },
-        { .propFn = (propSequenceFn) prop_sequence_cmpLexicalShortest, .desc = "prop_sequence_cmpLexicalShortest",
+        { .propFn = (propSequenceFn) prop_sequence_cmpAntisym, .desc = "prop_sequence_cmpAntisym",
             .gens = (const CCHECK_Gen**) gen_Dbls_Dbls },
+        { .propFn = (propSequenceFn) prop_sequence_cmpLexicalShortest, .desc = "prop_sequence_cmpLexicalShortest",
+            .gens = (const CCHECK_Gen**) gen_Dbls_DblsNE },
         { .propFn = (propSequenceFn) prop_sequence_cmpLexicalPrefix, .desc = "prop_sequence_cmpLexicalPrefix",
             .gens = (const CCHECK_Gen**) gen_Dbls_Dbls_Dbls },
 
@@ -1098,35 +1115,120 @@ int prop_sequence_pushPopBack(const pfds_objectvtable *vtable, pfds_ArrayList * 
 }
 
 int prop_sequence_pushBack(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, pfds_object* x) {
-    return false;
+    // x, xsArray
+    pfds_retain(xsArray);
+    pfds_sequence* xs = pfds_sequence_fromArrayList(vtable->sequence, xsArray);
+    // x, xs, xsArray
+
+    pfds_retain(x);
+    // x, x, xs, xsArray
+
+    pfds_sequence* ys = pfds_sequence_pushBack(xs, x);
+    // x, ys, xsArray
+
+    pfds_object* y = pfds_sequence_front(ys);
+    // x, ys, xsArray (borrow y ys)
+
+
+    bool result = y != NULL && pfds_cmp(x, y) == PFDS_EQ;
+
+    // x, ys, xsArray (borrow y ys)
+    pfds_release(ys);
+    // x, xsArray
+
+    return result;
 }
 
 
-int prop_sequence_get(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, pfds_UInt64* i) {
+int prop_sequence_get(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, size_t i) {
+    size_t sz = pfds_sequence_size((pfds_sequence*) xsArray);
+    assert(sz >= 0);
+    i = i % sz;
+
+    // xsArray
+    pfds_retain(xsArray);
+    pfds_sequence* xs = pfds_sequence_fromArrayList(vtable->sequence, xsArray);
+    // xs, xsArray
+
+    pfds_object * x = pfds_sequence_get(xs, i);
+    pfds_object * xA = pfds_sequence_get((pfds_sequence*) xsArray, i);
+    // xs[x], xsArray[xA]
+
+    bool result = x != NULL
+        && xA != NULL
+        && pfds_cmp(x, xA) == PFDS_EQ;
+
+    pfds_release(xs);
+    // xsArray[xA]
+    return result;
+}
+
+int prop_sequence_getGet(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, size_t i) {
+    size_t sz = pfds_sequence_size((pfds_sequence*) xsArray);
+
+    i = i % sz;
+
+    // xsArray
+    pfds_retain(xsArray);
+    pfds_sequence* xs = pfds_sequence_fromArrayList(vtable->sequence, xsArray);
+    // xs, xsArray
+
+    pfds_object * x = pfds_sequence_get(xs, i);
+    pfds_object * y = pfds_sequence_get(xs, i);
+    // xs[x,y], xsArray
+
+    bool result = x != NULL
+        && y != NULL
+        && pfds_cmp(x, y) == PFDS_EQ;
+
+    pfds_release(xs);
+    // xsArray
+
+    return result;
+}
+
+int prop_sequence_getSplit(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, size_t i) {
+    size_t sz = pfds_sequence_size((pfds_sequence*) xsArray);
+
+    i = i % sz;
+
+    // xsArray
+    pfds_retain(xsArray);
+    pfds_sequence* xs = pfds_sequence_fromArrayList(vtable->sequence, xsArray);
+    // xs, xsArray
+
+    pfds_object* x = pfds_sequence_get(xs, i);
+    pfds_retain(x);
+    // xs, x, xsArray
+
+    pfds_sequence *ys, *zs;
+    pfds_object* y;
+
+    bool result = pfds_sequence_split(&ys, &y, &zs, xs, i) // ys, y, zs, x, xsArray
+        && ys != NULL && y != NULL && zs != NULL
+        && pfds_cmp(x, y) == PFDS_EQ
+        && pfds_sequence_size(ys) == i;
+
+    pfds_release(ys); pfds_release(y);
+    pfds_release(zs); pfds_release(x);
+    // xsArray
+
+    return result;
+}
+
+int prop_sequence_insertBeforeGet(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, pfds_object* x, size_t i) {
     return false;
 }
 
-int prop_sequence_getGet(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, pfds_UInt64* i) {
+int prop_sequence_insertAtGet(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, pfds_object* x, size_t i) {
     return false;
 }
 
-int prop_sequence_getSplit(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, pfds_UInt64* i) {
+int prop_sequence_updateGet(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, pfds_object* x, size_t i) {
     return false;
 }
 
-int prop_sequence_insertBeforeGet(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, pfds_object* x, pfds_UInt64* i) {
-    return false;
-}
-
-int prop_sequence_insertAtGet(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, pfds_object* x, pfds_UInt64* i) {
-    return false;
-}
-
-int prop_sequence_updateGet(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, pfds_object* x, pfds_UInt64* i) {
-    return false;
-}
-
-int prop_sequence_delete(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, pfds_UInt64* i) {
+int prop_sequence_delete(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, size_t i) {
     return false;
 }
 
@@ -1150,15 +1252,85 @@ int prop_sequence_reverse(const pfds_objectvtable *vtable, pfds_ArrayList * xsAr
 
 
 int prop_sequence_cmpRefl(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray) {
-    return false;
+    // xsArray
+    pfds_retain(xsArray);
+    pfds_sequence* xs = pfds_sequence_fromArrayList(vtable->sequence, xsArray);
+    // xs, xsArray
+
+    bool result = pfds_cmp(xs, xs) == PFDS_EQ;
+    pfds_release(xs);
+    // xsArray
+
+    return result;
+}
+
+int prop_sequence_cmpAntisym(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, pfds_ArrayList * ysArray) {
+    // xsArray ysArray
+    pfds_retain(xsArray);
+    pfds_sequence* xs = pfds_sequence_fromArrayList(vtable->sequence, xsArray);
+    pfds_retain(ysArray);
+    pfds_sequence* ys = pfds_sequence_fromArrayList(vtable->sequence, ysArray);
+    // xs, ys, xsArray, ysArray
+
+    pfds_ordering xRy = pfds_cmp(xs, ys);
+    pfds_ordering yRx = pfds_cmp(ys, xs);
+    pfds_release(xs); pfds_release(ys);
+
+    // xsArray ysArray
+    switch(xRy) {
+        case PFDS_LT: return yRx == PFDS_GT;
+        case PFDS_EQ: return yRx == PFDS_EQ;
+        case PFDS_GT: return yRx == PFDS_LT;
+        default: return false;
+    }
 }
 
 int prop_sequence_cmpLexicalShortest(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, pfds_ArrayList * ysArray) {
-    return false;
+    assert(pfds_sequence_size((pfds_sequence*) ysArray) > 0);
+
+    // xsArray ysArray
+    pfds_retain(xsArray);
+    pfds_sequence* xs = pfds_sequence_fromArrayList(vtable->sequence, xsArray);
+    pfds_retain(ysArray);
+    pfds_sequence* ys = pfds_sequence_fromArrayList(vtable->sequence, ysArray);
+    // xs, ys, xsArray, ysArray
+
+    pfds_retain(xs);
+    ys = pfds_sequence_mappend(xs, ys);
+    // xs, ys, xsArray, ysArray
+
+    pfds_ordering xRy = pfds_cmp(xs, ys);
+
+    pfds_release(xs);
+    pfds_release(ys);
+    // xsArray, ysArray
+
+    return xRy == PFDS_LT;
 }
 
 int prop_sequence_cmpLexicalPrefix(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, pfds_ArrayList * ysArray, pfds_ArrayList * zsArray) {
-    return false;
+    // xsArray ysArray
+    pfds_retain(xsArray);
+    pfds_sequence* xs = pfds_sequence_fromArrayList(vtable->sequence, xsArray);
+    pfds_retain(ysArray);
+    pfds_sequence* ys = pfds_sequence_fromArrayList(vtable->sequence, ysArray);
+    pfds_retain(zsArray);
+    pfds_sequence* zs = pfds_sequence_fromArrayList(vtable->sequence, zsArray);
+    // xs, ys, zs, xsArray, ysArray, zsArray
+
+    pfds_retain(xs); pfds_retain(ys);
+    pfds_sequence* xys = pfds_sequence_mappend(xs, ys);
+    pfds_retain(xs); pfds_retain(zs);
+    pfds_sequence* xzs = pfds_sequence_mappend(xs, zs);
+    // xys, xzs, xs, ys, zs, xsArray, ysArray, zsArray
+
+    pfds_ordering yRz = pfds_cmp(ys, zs);
+    pfds_ordering xyRxz = pfds_cmp(xys, xzs);
+
+    pfds_release(xys); pfds_release(xzs); pfds_release(xs); pfds_release(ys); pfds_release(zs);
+    // xsArray, ysArray, zsArray
+
+    return yRz == xyRxz;
 }
 
 

@@ -166,7 +166,9 @@ generateConfigStatus () {
         printf ' \\\n\t--%s=%s' "$v" "${configPathOptions[$v]@Q}"
     done
     for v in "${!configFeatureOptions[@]}" ; do
-        printf ' \\\n\t--%s=%s' "$v" "${configFeatureOptions[$v]@Q}"
+        if [ "0${configFeatureOptions[$v]}" -eq "1" ] ; then
+            printf ' \\\n\t--enable-%s' "$v"
+        fi
     done
     printf '\n'
 }

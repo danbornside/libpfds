@@ -273,7 +273,7 @@ pfds_object* pfds_sequence_defaultBack(pfds_sequence* self);
  * \invariant borrow(self)
  *
  */
-void pfds_sequence_defaultDebugfputs (FILE* stream, pfds_sequence* self);
+int pfds_sequence_defaultDebugfputs (FILE* stream, pfds_sequence* self);
 
 /** convenience default implementation of reduceLeft based on popFront
  *

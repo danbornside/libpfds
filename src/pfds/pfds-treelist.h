@@ -23,7 +23,7 @@ typedef struct pfds_TreeList pfds_TreeList;
 extern const pfds_objectvtable pfds_TreeList_vtable;
 
 pfds_TreeList* pfds_TreeList_fromArray(size_t n, pfds_object** xs);
-void pfds_TreeList_debugfputs(FILE* stream, pfds_TreeList* self);
+int pfds_TreeList_debugfputs(FILE* stream, pfds_TreeList* self);
 extern pfds_TreeList* pfds_TreeList_singleton(pfds_object* x);
 extern pfds_TreeList* pfds_TreeList_mempty(void);
 

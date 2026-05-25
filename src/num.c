@@ -44,9 +44,9 @@ pfds_ordering pfds_Double_cmp(pfds_Double *l, pfds_Double *r) {
 
 }
 
-void Double_debugfputs(FILE* stream, pfds_object* self_obj) {
+int Double_debugfputs(FILE* stream, pfds_object* self_obj) {
     pfds_Double* self = (pfds_Double*) self_obj;
-    fprintf(stream, "%f", self->value);
+    return fprintf(stream, "%f", self->value);
 }
 
 const pfds_objectvtable pfds_Double_vtable = {
@@ -79,9 +79,9 @@ pfds_ordering pfds_UInt64_cmp(pfds_UInt64 *l, pfds_UInt64 *r) {
 
 }
 
-void UInt64_debugfputs(FILE* stream, pfds_object* self_obj) {
+int UInt64_debugfputs(FILE* stream, pfds_object* self_obj) {
     pfds_UInt64* self = (pfds_UInt64*) self_obj;
-    fprintf(stream, "%lu", self->value);
+    return fprintf(stream, "%lu", self->value);
 }
 
 const pfds_objectvtable pfds_UInt64_vtable = {

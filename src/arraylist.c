@@ -70,14 +70,16 @@ void ArrayList_destroy(pfds_object* self_obj) {
         free(self->elements);
     }
 }
-void ArrayList_debugfputs(FILE* stream, pfds_object* self_obj) {
+
+int ArrayList_debugfputs(FILE* stream, pfds_object* self_obj) {
     pfds_ArrayList* self = (pfds_ArrayList*) self_obj;
-    fputs("[", stream);
+    int n = fprintf(stream, "[");
     for(size_t i = 0; i < self->size; ++i) {
-        fprintf(stream, "%s", i ? ", " : "");
-        pfds_debugfputs(stream, self->elements[i]);
+        n += fprintf(stream, "%s", i ? ", " : "");
+        n += pfds_debugfputs(stream, self->elements[i]);
     }
-    fputs("]", stream);
+    n += fprintf(stream, "]");
+    return n;
 }
 
 pfds_ordering pfds_ArrayList_cmp(pfds_ArrayList* l, pfds_ArrayList* r) {

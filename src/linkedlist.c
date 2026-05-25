@@ -390,7 +390,7 @@ void LinkedList_destroy(pfds_LinkedList* self) {
 const pfds_objectvtable pfds_LinkedList_vtable = {
     .typename = "LinkedList",
     .destroy = (void (*)(pfds_object*)) LinkedList_destroy,
-    .debugfputs = (void (*)(FILE*, pfds_object*))
+    .debugfputs = (int (*)(FILE*, pfds_object*))
         pfds_sequence_defaultDebugfputs,
         // LinkedList_debugfputs,
     .cmp = (pfds_ordering (*)(pfds_object*, pfds_object*))

@@ -77,7 +77,7 @@ struct pfds_objectvtable {
      * \invariant borrow(self)
      *
      */
-    const void (*debugfputs)(FILE*, pfds_object*);
+    const int (*debugfputs)(FILE*, pfds_object*);
 
     /** compare two objects
      *
@@ -101,7 +101,7 @@ struct pfds_objectvtable {
  * \invariant borrow(self)
  *
  */
-void pfds_object_debugfputs(FILE* stream, pfds_object* self);
+int pfds_object_debugfputs(FILE* stream, pfds_object* self);
 
 /** compare two objects
  *

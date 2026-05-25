@@ -139,14 +139,14 @@ extern void pfds_object_release(pfds_object* self) {
 #elif defined (PFDS_GC_NONE)
 #endif
 
-extern void pfds_object_debugfputs(FILE* stream, pfds_object* self) {
+extern int pfds_object_debugfputs(FILE* stream, pfds_object* self) {
     if (self == NULL) {
-        fputs("<NULL>", stream);
+        return fprintf(stream, "%s", "<NULL>");
     } else {
         if (self->vtable->debugfputs == NULL) {
-            fprintf(stream, "<OBJECT@%p>", self);
+            return fprintf(stream, "<OBJECT@%p>", self);
         } else {
-            self->vtable->debugfputs(stream, self);
+            return self->vtable->debugfputs(stream, self);
         }
     }
 }
@@ -156,7 +156,7 @@ extern pfds_String* pfds_object_toString(pfds_object* self) {
     size_t size = 0;
     FILE* stream = open_memstream(&buf, &size);
     pfds_object_debugfputs(stream, self);
-    fflush(stream);
+    fclose(stream);
     return pfds_String_new(buf, size, true);
 }
 
@@ -350,18 +350,20 @@ extern pfds_sequence* pfds_sequence_defaultUpdateAt(pfds_sequence* self, size_t 
     }
 }
 
-extern void pfds_sequence_defaultDebugfputs (FILE* stream, pfds_sequence* self) {
+extern int pfds_sequence_defaultDebugfputs (FILE* stream, pfds_sequence* self) {
     bool printedBrace = false;
+    int n = 0;
     pfds_retain(self);
     pfds_object* head = NULL;
     pfds_sequence* tail = self;
     while(pfds_sequence_popFront(&head, &tail, tail)) {
-        fputs(printedBrace ? ", " : "[", stream);
+        n += fprintf(stream, "%s", printedBrace ? ", " : "[");
         printedBrace = true;
-        pfds_object_debugfputs(stream, head);
+        n += pfds_object_debugfputs(stream, head);
         pfds_release(head);
     }
-    fputs(printedBrace ? "]": "[]" , stream);
+    n += fprintf(stream, "%s", printedBrace ? "]": "[]");
+    return n;
 }
 
 extern pfds_sequence* pfds_sequence_defaultReverse(pfds_sequence* self) {

@@ -44,7 +44,7 @@ pfds_objectvtable pfds_ArrayMap_vtable = {
         ArrayMap_destroy,
     .cmp = (pfds_ordering (*)(pfds_object*, pfds_object*))
         pfds_ArrayMap_cmp,
-    .debugfputs = (void (*)(FILE*, pfds_object*))
+    .debugfputs = (int (*)(FILE*, pfds_object*))
         pfds_ArrayMap_debugfputs,
     .mapping = &ArrayMap_mapping,
 };
@@ -167,6 +167,6 @@ pfds_ordering pfds_ArrayMap_cmp(pfds_ArrayMap* l, pfds_ArrayMap* r) {
     panic("TODO");
 }
 
-void pfds_ArrayMap_debugfputs(FILE* stream, pfds_ArrayMap* self) {
+int pfds_ArrayMap_debugfputs(FILE* stream, pfds_ArrayMap* self) {
     panic("TODO");
 }

@@ -52,6 +52,16 @@ void display_mallinfodelta(FILE* stream, struct mallinfo2 *start, struct mallinf
 
 void test_catenable_vtable(const pfds_catenablevtable* vtable);
 
+
+int pfds_defaultGenShow(FILE* stream, void* userData, void* sample) {
+    return pfds_debugfputs(stream, * (pfds_object**) sample);
+}
+
+void pfds_defaultGenDispose(void* userData, void* sample) {
+    pfds_release(* (pfds_object**) sample);
+}
+
+
 void test_String(void) {
     PREPARE_GC_COUNTS(gcCounts);
     pfds_String* x = pfds_String_fromConstCstring("x");
@@ -254,7 +264,7 @@ pfds_String * test_binop(void* ud, pfds_object* l, pfds_object * r) {
     fputs("<+>", stream);
     r->vtable->debugfputs(stream, r);
     fputs(")", stream);
-    fflush(stream);
+    fclose(stream);
 
     pfds_release(l);
     pfds_release(r);
@@ -959,7 +969,7 @@ void test_treelist_debugfputs (void) {
     pfds_release(lst);
     fputs("\n", stream);
 
-    fflush(stream);
+    fclose(stream);
 
     CU_ASSERT_STRING_EQUAL( buf,
         "TREELIST:{EMPTY}\n"
@@ -1167,7 +1177,7 @@ struct nstring ssprintf(const char* format, ...) {
     va_start(va, format);
     vfprintf(stream, format, va);
     va_end(va);
-    fflush(stream);
+    fclose(stream);
 
     return first_nstring->nstring;
 };

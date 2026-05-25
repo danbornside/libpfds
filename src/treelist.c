@@ -1472,72 +1472,82 @@ void TreeList_destroy(pfds_TreeList* self) {
     pfds_release(self->fingerTree);
 }
 
-void Node_debugfputs(FILE* stream, Node* self, size_t depth) {
-    fprintf(stream, "N%d[<m:", self->tag);
-    pfds_debugfputs(stream, self->measure);
-    fputs(">", stream);
+int Node_debugfputs(FILE* stream, Node* self, size_t depth) {
+    int n = fprintf(stream, "N%d[<m:", self->tag);
+    n += pfds_debugfputs(stream, self->measure);
+    fputs(">", stream); n++;
     for(int i = 0 ; i < self->tag ; i++) {
-        fputs(", ", stream);
+        fputs(", ", stream); n += 2;
         if (depth <= 1) {
-            pfds_debugfputs(stream, self->elements[i]);
+            n += pfds_debugfputs(stream, self->elements[i]);
         } else {
-            Node_debugfputs(stream, (Node*) self->elements[i], depth - 1);
+            n += Node_debugfputs(stream, (Node*) self->elements[i], depth - 1);
         }
     }
     fputs("]", stream);
-}
-void Digit_debugfputs(FILE* stream, Digit* self, size_t depth) {
-    fprintf(stream, "D%d[", self->tag);
-    for(int i = 0 ; i < self->tag ; i++) {
-        if (i > 0) fputs(", ", stream);
-        if (depth > 0) {
-            Node_debugfputs(stream, (Node*) self->elements[i], depth);
-        } else {
-            pfds_debugfputs(stream, self->elements[i]);
-        }
-    }
-    fputs("]", stream);
+    n++;
+    return n;
 }
 
-void FingerTree_debugfputs(FILE* stream, FingerTree* self, size_t depth) {
+int Digit_debugfputs(FILE* stream, Digit* self, size_t depth) {
+    int n = fprintf(stream, "D%d[", self->tag);
+    for(int i = 0 ; i < self->tag ; i++) {
+        if (i > 0) {
+            n += fprintf(stream, ", ");
+        }
+        if (depth > 0) {
+            n += Node_debugfputs(stream, (Node*) self->elements[i], depth);
+        } else {
+            n += pfds_debugfputs(stream, self->elements[i]);
+        }
+    }
+    fputs("]", stream);
+    n ++;
+    return n;
+}
+
+int FingerTree_debugfputs(FILE* stream, FingerTree* self, size_t depth) {
+    int n;
     switch (self->tag) {
         case FINGERTREE_EMPTY:
-            fputs("EMPTY", stream);
-            break;
+            return fprintf(stream, "EMPTY");
         case FINGERTREE_SINGLE:
-            fputs("SINGLE(", stream);
+            n = fprintf(stream, "SINGLE(");
             if (depth == 0) {
-                pfds_debugfputs(stream, self->single);
+                n += pfds_debugfputs(stream, self->single);
             } else {
-                Node_debugfputs(stream, (Node*) self->single, depth);
+                n += Node_debugfputs(stream, (Node*) self->single, depth);
             }
-            fputs(")", stream);
-            break;
+            n += fprintf(stream, ")");
+            return n;
         case FINGERTREE_DEEP:
-            fputs("DEEP(<m:", stream);
-            pfds_debugfputs(stream, self->deep.measure);
-            fputs(">, ", stream);
-            Digit_debugfputs(stream, self->deep.prefix, depth);
-            fputs(", ", stream);
-            FingerTree_debugfputs(stream, self->deep.m, depth + 1);
-            fputs(", ", stream);
-            Digit_debugfputs(stream, self->deep.suffix, depth);
-            fputs(")", stream);
-            break;
-
+            n = fprintf(stream, "DEEP(<m:");
+            n += pfds_debugfputs(stream, self->deep.measure);
+            n += fprintf(stream, ">, ");
+            n += Digit_debugfputs(stream, self->deep.prefix, depth);
+            n += fprintf(stream, ", ");
+            n += FingerTree_debugfputs(stream, self->deep.m, depth + 1);
+            n += fprintf(stream, ", ");
+            n += Digit_debugfputs(stream, self->deep.suffix, depth);
+            n += fprintf(stream, ")");
+            return n;
+        default:
+            panic("invalid fingertree tag");
     }
 }
-extern void pfds_TreeList_debugfputs(FILE* stream, pfds_TreeList* self) {
-    fputs("TREELIST:{", stream);
-    FingerTree_debugfputs(stream, self->fingerTree, 0);
-    fputs("}", stream);
+
+extern int pfds_TreeList_debugfputs(FILE* stream, pfds_TreeList* self) {
+    int n = fprintf(stream, "TREELIST:{");
+    n += FingerTree_debugfputs(stream, self->fingerTree, 0);
+    n += fprintf(stream, "}");
+    return n;
 }
 
 const pfds_objectvtable pfds_TreeList_vtable = {
     .typename = "TreeList",
     .destroy = (void (*)(pfds_object*))
         TreeList_destroy,
-    .debugfputs = (void (*)(FILE*, pfds_object*))
+    .debugfputs = (int (*)(FILE*, pfds_object*))
         pfds_sequence_defaultDebugfputs,
         // pfds_TreeList_debugfputs,
     .cmp = (pfds_ordering (*)(pfds_object*, pfds_object*))

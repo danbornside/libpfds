@@ -235,7 +235,7 @@ extern void CCHECK_assert_prop_impl(CCHECK_Context* ctx, int lineNo, char* fileN
             fprintf(stream, "\n");
             curSample = curSample->next;
         }
-        fflush(stream);
+        fclose(stream);
         CCHECK_Context_reset(ctx);
         CU_assertImplementation( CU_FALSE, lineNo, buf, fileName, strName, CU_TRUE );
     }
@@ -354,7 +354,7 @@ extern void CCHECK_test_forAll_impl(
                     gens[argn]->show(stream, gens[argn]->userData, values[argn + 1]);
                 }
                 fprintf(stream, ") after %d iterations.\n", (iteration + 1));
-                fflush(stream);
+                fclose(stream);
 
                 for (int argn = 0; argn < nargs; argn++) {
                     CCHECK_Gen_dispose(gens[argn], values[argn + 1]);

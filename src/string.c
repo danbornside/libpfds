@@ -34,9 +34,11 @@ void String_destroy(pfds_String* self) {
     }
 }
 
-void String_debugfputs(FILE* stream, pfds_String* self) {
+int String_debugfputs(FILE* stream, pfds_String* self) {
     fputs(self->buf, stream);
+    return self->size;
 }
+
 pfds_object* String_mappend(pfds_object* l_object, pfds_object* r_object) {
     pfds_String* l = (pfds_String*) l_object;
     pfds_String* r = (pfds_String*) r_object;
@@ -79,7 +81,7 @@ static pfds_catenablevtable String_catenablevtable = {
 const pfds_objectvtable pfds_String_vtable = {
     .typename = "String",
     .destroy = (void (*)(pfds_object*)) String_destroy,
-    .debugfputs = (void (*)(FILE*, pfds_object*)) String_debugfputs,
+    .debugfputs = (int (*)(FILE*, pfds_object*)) String_debugfputs,
     .cmp = (pfds_ordering (*)(pfds_object*,pfds_object*))
         pfds_String_cmp,
 

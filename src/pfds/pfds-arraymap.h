@@ -32,6 +32,6 @@ pfds_ArrayMap * pfds_ArrayMap_empty();
 pfds_ArrayMap * pfds_ArrayMap_singleton(struct pfds_object_pair item);
 pfds_ArrayMap * pfds_ArrayMap_fromArray(size_t size, struct pfds_object_pair items[]);
 pfds_ordering pfds_ArrayMap_cmp(pfds_ArrayMap* l, pfds_ArrayMap* r);
-void pfds_ArrayMap_debugfputs(FILE* stream, pfds_ArrayMap* self);
+int pfds_ArrayMap_debugfputs(FILE* stream, pfds_ArrayMap* self);
 
 #endif

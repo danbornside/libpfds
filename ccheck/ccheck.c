@@ -73,6 +73,22 @@ const struct CCHECK_Gen genInt = {
         showIntImpl,
 };
 
+void generateUInt64Impl(uint64_t* sample, void*, int size, SplitMix64* randGen) {
+    *sample = SplitMix64_nextInt64(randGen);
+}
+
+int showUInt64Impl(FILE* stream, void* userData, uint64_t* sample) {
+    return fprintf(stream, "%lu", *sample);
+}
+
+const struct CCHECK_Gen genUInt64 = {
+    .genType = &ffi_type_uint64,
+    .generate = (void (*)(void* , void*, int , SplitMix64* ))
+        generateUInt64Impl,
+    .show = (int (*)(FILE*, void*, void*))
+        showUInt64Impl,
+};
+
 
 int showIntArray(FILE* stream, void*, struct CCHECK_IntArray* sample) {
     int n = 0;
@@ -594,4 +610,44 @@ extern CCHECK_Gen* genArray(CCHECK_Gen* elementGen) {
         }
     }
     return myGen;
+}
+
+struct Gen_Size {
+    CCHECK_Gen gen;
+    CCHECK_Gen *childGen;
+    int(*sizeFn)(void*, int);
+    void* sizeFnData;
+};
+
+void generateSize(void* result, struct Gen_Size* myGen, int size, SplitMix64 *randGen) {
+    size = myGen->sizeFn(myGen->sizeFnData, size);
+    myGen->childGen->generate(result, myGen->childGen->userData, size, randGen);
+}
+int showSize(FILE* stream, struct Gen_Size* myGen, void* sample) {
+    return myGen->childGen->show(stream, myGen->childGen->userData, sample);
+}
+void disposeSize(struct Gen_Size* myGen, void* sample) {
+    myGen->childGen->dispose(myGen->childGen->userData, sample);
+}
+
+CCHECK_Gen* genSize(CCHECK_Gen* childGen, int(*sizeFn)(void*, int), void* sizeFnData) {
+    struct Gen_Size * myGen = (struct Gen_Size *) malloc(sizeof(struct Gen_Size));
+    myGen->gen.userData = myGen;
+    myGen->gen.genType = childGen->genType;
+    myGen->gen.generate = (void (*)(void*, void*, int, SplitMix64 *))
+        generateSize;
+    myGen->gen.show = (int (*)(FILE*, void*, void*))
+        showSize;
+    myGen->gen.dispose = childGen->dispose == NULL
+        ? NULL
+        : (void (*)(void*, void*)) disposeSize;
+    myGen->childGen = childGen;
+    myGen->sizeFn = sizeFn;
+    myGen->sizeFnData = sizeFnData;
+    return (CCHECK_Gen*) myGen;
+}
+
+int clampBelow(void* ud, int sz) {
+    int lb = (int) (long) ud;
+    return sz < lb ? lb : sz;
 }

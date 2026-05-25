@@ -121,6 +121,8 @@ typedef struct CCHECK_Gen {
 } CCHECK_Gen;
 
 extern const CCHECK_Gen genInt;
+extern const CCHECK_Gen genUInt64;
+
 extern const CCHECK_Gen genDouble;
 
 typedef struct CCHECK_IntArray {
@@ -144,6 +146,13 @@ CCHECK_Gen* genDoubleConstant(double);
 CCHECK_Gen* genDoubleRange(double, double);
 
 CCHECK_Gen* genArray(CCHECK_Gen*);
+
+// wrap a generator that passes a different size using a callback function.
+CCHECK_Gen* genSize(CCHECK_Gen* gen, int(*sizeFn)(void*, int), void*);
+
+int clampBelow(void* ud, int sz);
+
+
 
 
 /** add a test that checks a simple property

@@ -164,6 +164,20 @@ struct testModule {
     struct testBenchmark *testBenchmarks, *lastBenchmark;
 };
 
+/* register a ccheck property.
+ *
+ * pfds types and ccheck interact in a way that means that the refcount of arguments must be 1 at function exit.
+ *
+ * @param m
+ * @param nm
+ * @param dict
+ * @param iterations
+ * @param propFn
+ * @param gens null terminated list of CCHECK_Gen generators.  any generator
+ *  may be used, not just generators of pfds types.  number fo generators must
+ *  match the number of extra arguments taken by propFn.
+ *
+ */
 void classyProp(
         struct testModule* m,
         const char* nm,
@@ -205,5 +219,9 @@ pfds_sequence* mkTestValue_sequence(const pfds_sequencevtable* vtable, int seed)
 pfds_String* mkTestValue_String(void* ud, int seed);
 pfds_Double* mkTestValue_Double(void* ud, int seed);
 pfds_UInt64* mkTestValue_UInt64(void* ud, int seed);
+
+
+int pfds_defaultGenShow(FILE* stream, void* userData, void* sample);
+void pfds_defaultGenDispose(void* userData, void* sample);
 
 #endif

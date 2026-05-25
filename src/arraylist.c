@@ -27,7 +27,6 @@ struct pfds_ArrayList {
     pfds_object **elements;
 };
 
-pfds_ArrayList* pfds_ArrayList_new(size_t size, pfds_object* elements[], bool owner);
 pfds_ArrayList* ArrayList_insertBefore(pfds_ArrayList* self, size_t n, pfds_object* x);
 pfds_ArrayList* ArrayList_deleteAt(pfds_ArrayList* self, size_t n);
 pfds_ArrayList* ArrayList_updateAt(pfds_ArrayList* self, size_t n, pfds_object* x);
@@ -35,7 +34,7 @@ pfds_ArrayList* ArrayList_updateAt(pfds_ArrayList* self, size_t n, pfds_object* 
 extern pfds_ArrayList* pfds_ArrayList_fromArray(size_t size, pfds_object** elements) {
     pfds_object** myElements = (pfds_object**) calloc(sizeof(pfds_object*), size);
     memcpy(myElements, elements, sizeof(pfds_object*)*size);
-    return pfds_ArrayList_new(size, myElements, true);
+    return pfds_ArrayList_fromArrayEx(size, myElements, true);
 }
 
 
@@ -55,7 +54,7 @@ pfds_ArrayList* pfds_ArrayList_concat(size_t n, pfds_ArrayList** selves) {
         }
         pfds_release(selves[i]);
     }
-    return pfds_ArrayList_new(size, elements, true);
+    return pfds_ArrayList_fromArrayEx(size, elements, true);
 }
 
 size_t pfds_ArrayList_size(pfds_ArrayList* self) { return self->size; }
@@ -114,7 +113,7 @@ bool pfds_ArrayList_split(pfds_ArrayList** init, pfds_object** link, pfds_ArrayL
         return false;
     }
     if (init != NULL) {
-        *init = pfds_ArrayList_new(pos, self->elements, false);
+        *init = pfds_ArrayList_fromArrayEx(pos, self->elements, false);
         for(size_t i = 0; i < pos; i++) {
             pfds_retain((*init)->elements[i]);
         }
@@ -125,7 +124,7 @@ bool pfds_ArrayList_split(pfds_ArrayList** init, pfds_object** link, pfds_ArrayL
     }
     if (tail != NULL) {
         size_t tail_sz = self->size - pos - 1;
-        *tail = pfds_ArrayList_new(tail_sz, self->elements + (pos + 1), false);
+        *tail = pfds_ArrayList_fromArrayEx(tail_sz, self->elements + (pos + 1), false);
         for(size_t i = 0; i < tail_sz; i++) {
             pfds_retain((*tail)->elements[i]);
         }
@@ -145,7 +144,7 @@ pfds_ArrayList* pfds_ArrayList_pushFront(pfds_object* head, pfds_ArrayList* tail
         elements[i+1] = tail->elements[i];
         pfds_retain(elements[i+1]);
     }
-    pfds_ArrayList* self = pfds_ArrayList_new(size, elements, true);
+    pfds_ArrayList* self = pfds_ArrayList_fromArrayEx(size, elements, true);
     pfds_release(tail);
     return self;
 }
@@ -158,7 +157,7 @@ extern pfds_ArrayList* pfds_ArrayList_pushBack(pfds_ArrayList* init, pfds_object
         pfds_retain(elements[i]);
     }
     elements[init->size] = last;
-    pfds_ArrayList* self = pfds_ArrayList_new(size, elements, true);
+    pfds_ArrayList* self = pfds_ArrayList_fromArrayEx(size, elements, true);
     pfds_release(init);
     return self;
 
@@ -182,7 +181,7 @@ pfds_ArrayList* ArrayList_reverse(pfds_ArrayList* self) {
         pfds_retain(elements[i]);
     }
     pfds_release(self);
-    return pfds_ArrayList_new(self->size, elements, true);
+    return pfds_ArrayList_fromArrayEx(self->size, elements, true);
 }
 
 pfds_object* pfds_ArrayList_reduceRight(binop op, void* ud, pfds_ArrayList* self, pfds_object* seed) {
@@ -256,7 +255,7 @@ const pfds_objectvtable pfds_ArrayList_vtable = {
     .sequence = &ArrayList_sequencevtable,
 };
 
-pfds_ArrayList* pfds_ArrayList_new(size_t size, pfds_object* elements[], bool owner) {
+extern pfds_ArrayList* pfds_ArrayList_fromArrayEx(size_t size, pfds_object* elements[], bool owner) {
     pfds_ArrayList* self = (pfds_ArrayList*) pfds_object_new(sizeof(pfds_ArrayList), &pfds_ArrayList_vtable);
     self->size = size;
     if (size > 0) {
@@ -278,13 +277,13 @@ pfds_ArrayList* pfds_ArrayList_new(size_t size, pfds_object* elements[], bool ow
 }
 
 extern pfds_ArrayList* pfds_ArrayList_empty() {
-    return pfds_ArrayList_new(0, NULL, false);
+    return pfds_ArrayList_fromArrayEx(0, NULL, false);
 }
 
 extern pfds_ArrayList* pfds_ArrayList_singleton(pfds_object* elem) {
     pfds_object** elems = (pfds_object**) calloc(sizeof(pfds_object*), 1);
     elems[0] = elem;
-    return pfds_ArrayList_new(1, elems, true);
+    return pfds_ArrayList_fromArrayEx(1, elems, true);
 }
 
 /** add an element x in position n.
@@ -318,7 +317,7 @@ pfds_ArrayList* ArrayList_insertBefore(pfds_ArrayList* self, size_t n, pfds_obje
 
     pfds_release(self);
 
-    return pfds_ArrayList_new(size, elems, true);
+    return pfds_ArrayList_fromArrayEx(size, elems, true);
 }
 
 /** replace an element x in position n.
@@ -352,7 +351,7 @@ pfds_ArrayList* ArrayList_updateAt(pfds_ArrayList* self, size_t n, pfds_object* 
 
     pfds_release(self);
 
-    return pfds_ArrayList_new(size, elems, true);
+    return pfds_ArrayList_fromArrayEx(size, elems, true);
 }
 /** delete an element x in position n.
  *
@@ -382,7 +381,7 @@ pfds_ArrayList* ArrayList_deleteAt(pfds_ArrayList* self, size_t n) {
 
     pfds_release(self);
 
-    return pfds_ArrayList_new(size, elems, true);
+    return pfds_ArrayList_fromArrayEx(size, elems, true);
 }
 
 extern pfds_ArrayList* pfds_ArrayList_mappend(pfds_ArrayList* l, pfds_ArrayList* r) {
@@ -406,7 +405,13 @@ extern pfds_ArrayList* pfds_ArrayList_mappend(pfds_ArrayList* l, pfds_ArrayList*
         }
         pfds_release(l);
         pfds_release(r);
-        return pfds_ArrayList_new(size, elements, true);
+        return pfds_ArrayList_fromArrayEx(size, elements, true);
     }
 }
 
+pfds_sequence* pfds_sequence_fromArrayList(const pfds_sequencevtable* dict, pfds_ArrayList* self) {
+    pfds_retain_array(self->size, self->elements);
+    pfds_sequence* seq = dict->fromArray(self->size, self->elements);
+    pfds_release(self);
+    return seq;
+}

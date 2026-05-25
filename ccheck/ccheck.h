@@ -88,6 +88,13 @@ typedef struct CCHECK_Gen {
      *
      * used to display counterexamples for failing properties.
      *
+     * NOTE: sample is a pointer to the same location passed to `generate`.
+     * this method will probably need to cast to a suitable pointer type first.
+     * eg you want something like
+     *      `fprintf(stream, "%s", *(char**)sample)`
+     * rathaer than
+     *      `fprintf(stream, "%s", (char*)sample)`
+     *
      * @param stream FILE* to print the sample to.
      * @param userData userData
      * @param sample the value to be stringified previously returned by `generate()`
@@ -99,6 +106,13 @@ typedef struct CCHECK_Gen {
      * if this field is null then the returned value will be freed with
      * `free(3)`.  if it is set to something then the dispose method is
      * responsible for freeing the sample.
+     *
+     * NOTE: sample is a pointer to the same location passed to `generate`.
+     * this method will probably need to cast to a suitable pointer type first.
+     * eg you want something like
+     *      `free(*(char**)sample)`
+     * rathaer than
+     *      `free(sample)`
      *
      * @param userData userData
      * @param sample a value previously returned by `generate()` to be disposed

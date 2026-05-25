@@ -17,8 +17,11 @@
 
 // test infra for working generically with types that implement the sequence interface.
 
+#include <assert.h>
+
 #include "test_pfds.h"
 #include "pfds.h"
+#include "pfds/pfds-object-intl.h"
 #include "pfds/pfds-arraylist.h"
 #include "pfds/pfds-linkedlist.h"
 
@@ -58,6 +61,7 @@ void test_gc_sequence_concat(const pfds_objectvtable* dict);
 void test_gc_sequence_reduceRight(const pfds_objectvtable* dict);
 void test_gc_sequence_reduceLeft(const pfds_objectvtable* dict);
 
+
 void bench_lookup(struct benchState *bs, const pfds_objectvtable *vtable);
 void bench_fillFromArray(struct benchState *bs, const pfds_objectvtable *vtable);
 void bench_fillPushFront(struct benchState *bs, const pfds_objectvtable *vtable);
@@ -66,8 +70,36 @@ void bench_fillPushBack(struct benchState *bs, const pfds_objectvtable *vtable);
 void bench_shuffle(struct benchState *bs, const pfds_objectvtable *vtable);
 
 
+const CCHECK_Gen genBoxDouble;
+const CCHECK_Gen genBoxUInt64;
+CCHECK_Gen * genArrayList(const CCHECK_Gen* elements);
 
 int prop_sequence_empty_isEmpty(const pfds_objectvtable *vtable);
+
+int prop_sequence_pushPopFront(const pfds_objectvtable *vtable, pfds_object* x, pfds_ArrayList * xsArray);
+int prop_sequence_pushPopBack(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, pfds_object* x);
+
+int prop_sequence_pushFront(const pfds_objectvtable *vtable, pfds_object* x, pfds_ArrayList * xsArray);
+int prop_sequence_pushBack(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, pfds_object* x);
+
+int prop_sequence_get(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, pfds_UInt64* i);
+int prop_sequence_getGet(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, pfds_UInt64* i);
+int prop_sequence_getSplit(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, pfds_UInt64* i);
+int prop_sequence_insertBeforeGet(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, pfds_object* x, pfds_UInt64* i);
+int prop_sequence_insertAtGet(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, pfds_object* x, pfds_UInt64* i);
+int prop_sequence_updateGet(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, pfds_object* x, pfds_UInt64* i);
+int prop_sequence_delete(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, pfds_UInt64* i);
+
+int prop_sequence_toString(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray);
+
+int prop_sequence_reduceLeft(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray);
+int prop_sequence_reduceRight(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray);
+int prop_sequence_reverse(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray);
+
+int prop_sequence_cmpRefl(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray);
+int prop_sequence_cmpLexicalShortest(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, pfds_ArrayList * ysArray);
+int prop_sequence_cmpLexicalPrefix(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, pfds_ArrayList * ysArray, pfds_ArrayList * zsArray);
+
 
 struct testModule getTestSequenceModule () {
     struct testModule testSequenceModule = {
@@ -147,6 +179,47 @@ struct testModule getTestSequenceModule () {
     //     0,
     // };
 
+    // bit of reverse hungarian notation:
+
+    CCHECK_Gen * genArrayDbls = genArrayList(&genBoxDouble);
+
+    static CCHECK_Gen * gen_Dbls[3];
+    gen_Dbls[0] = genArrayDbls;
+    gen_Dbls[1] = 0;
+
+    static CCHECK_Gen * gen_Dbl_Dbls[3];
+    gen_Dbl_Dbls[0] = (CCHECK_Gen *) &genBoxDouble;
+    gen_Dbl_Dbls[1] = genArrayDbls;
+    gen_Dbl_Dbls[2] = 0;
+
+    static CCHECK_Gen * gen_Dbls_Dbl[3];
+    gen_Dbls_Dbl[0] = genArrayDbls;
+    gen_Dbls_Dbl[1] = (CCHECK_Gen *) &genBoxDouble;
+    gen_Dbls_Dbl[2] = 0;
+
+    static CCHECK_Gen * gen_Dbls_Int[3];
+    gen_Dbls_Int[0] = genArrayDbls;
+    gen_Dbls_Int[1] = (CCHECK_Gen *) &genBoxUInt64;
+    gen_Dbls_Int[2] = 0;
+
+    static CCHECK_Gen * gen_Dbls_Dbl_Int[4];
+    gen_Dbls_Dbl_Int[0] = genArrayDbls;
+    gen_Dbls_Dbl_Int[1] = (CCHECK_Gen *) &genBoxDouble;
+    gen_Dbls_Dbl_Int[2] = (CCHECK_Gen *) &genBoxUInt64;
+    gen_Dbls_Dbl_Int[3] = 0;
+
+    static CCHECK_Gen * gen_Dbls_Dbls[3];
+    gen_Dbls_Dbls[0] = genArrayDbls;
+    gen_Dbls_Dbls[1] = genArrayDbls;
+    gen_Dbls_Dbls[2] = 0;
+
+    static CCHECK_Gen * gen_Dbls_Dbls_Dbls[4];
+    gen_Dbls_Dbls_Dbls[0] = genArrayDbls;
+    gen_Dbls_Dbls_Dbls[1] = genArrayDbls;
+    gen_Dbls_Dbls_Dbls[2] = genArrayDbls;
+    gen_Dbls_Dbls_Dbls[3] = 0;
+
+
     typedef int (*propSequenceFn)(const pfds_objectvtable*, ...);
     struct propSequenceMethods {
         // void (*propFn)(const pfds_objectvtable*, ...);
@@ -155,6 +228,44 @@ struct testModule getTestSequenceModule () {
         const CCHECK_Gen ** gens;
     } propSequenceMethods[] = {
         { .propFn = (propSequenceFn) prop_sequence_empty_isEmpty, .desc = "isEmpty(empty)", .gens = 0 },
+        { .propFn = (propSequenceFn) prop_sequence_pushPopFront, .desc = "push-pop",
+            .gens = (const CCHECK_Gen**) gen_Dbl_Dbls },
+
+        { .propFn = (propSequenceFn) prop_sequence_pushPopBack, .desc = "prop_sequence_pushPopBack",
+            .gens = (const CCHECK_Gen**) gen_Dbls_Dbl },
+        { .propFn = (propSequenceFn) prop_sequence_pushFront, .desc = "prop_sequence_pushFront",
+            .gens = (const CCHECK_Gen**) gen_Dbl_Dbls  },
+        { .propFn = (propSequenceFn) prop_sequence_pushBack, .desc = "prop_sequence_pushBack",
+            .gens = (const CCHECK_Gen**) gen_Dbls_Dbl },
+        { .propFn = (propSequenceFn) prop_sequence_get, .desc = "prop_sequence_get",
+            .gens = (const CCHECK_Gen**) gen_Dbls_Int },
+        { .propFn = (propSequenceFn) prop_sequence_getGet, .desc = "prop_sequence_getGet",
+            .gens = (const CCHECK_Gen**) gen_Dbls_Int },
+        { .propFn = (propSequenceFn) prop_sequence_getSplit, .desc = "prop_sequence_getSplit",
+            .gens = (const CCHECK_Gen**) gen_Dbls_Int },
+        { .propFn = (propSequenceFn) prop_sequence_insertBeforeGet, .desc = "prop_sequence_insertBeforeGet",
+            .gens = (const CCHECK_Gen**) gen_Dbls_Dbl_Int },
+        { .propFn = (propSequenceFn) prop_sequence_insertAtGet, .desc = "prop_sequence_insertAtGet",
+            .gens = (const CCHECK_Gen**) gen_Dbls_Dbl_Int },
+        { .propFn = (propSequenceFn) prop_sequence_updateGet, .desc = "prop_sequence_updateGet",
+            .gens = (const CCHECK_Gen**) gen_Dbls_Dbl_Int },
+        { .propFn = (propSequenceFn) prop_sequence_delete, .desc = "prop_sequence_delete",
+            .gens = (const CCHECK_Gen**) gen_Dbls_Int },
+        { .propFn = (propSequenceFn) prop_sequence_toString, .desc = "prop_sequence_toString",
+            .gens = (const CCHECK_Gen**) gen_Dbls },
+        { .propFn = (propSequenceFn) prop_sequence_reduceLeft, .desc = "prop_sequence_reduceLeft",
+            .gens = (const CCHECK_Gen**) gen_Dbls },
+        { .propFn = (propSequenceFn) prop_sequence_reduceRight, .desc = "prop_sequence_reduceRight",
+            .gens = (const CCHECK_Gen**) gen_Dbls },
+        { .propFn = (propSequenceFn) prop_sequence_reverse, .desc = "prop_sequence_reverse",
+            .gens = (const CCHECK_Gen**) gen_Dbls },
+        { .propFn = (propSequenceFn) prop_sequence_cmpRefl, .desc = "prop_sequence_cmpRefl",
+            .gens = (const CCHECK_Gen**) gen_Dbls },
+        { .propFn = (propSequenceFn) prop_sequence_cmpLexicalShortest, .desc = "prop_sequence_cmpLexicalShortest",
+            .gens = (const CCHECK_Gen**) gen_Dbls_Dbls },
+        { .propFn = (propSequenceFn) prop_sequence_cmpLexicalPrefix, .desc = "prop_sequence_cmpLexicalPrefix",
+            .gens = (const CCHECK_Gen**) gen_Dbls_Dbls_Dbls },
+
         { 0 },
     };
 
@@ -856,3 +967,198 @@ int prop_sequence_empty_isEmpty(const pfds_objectvtable *vtable) {
     pfds_release(xs);
     return res;
 }
+
+int prop_sequence_pushPopFront(const pfds_objectvtable *vtable, pfds_object* x, pfds_ArrayList * xsArray) {
+    // x, xsArray
+    pfds_retain(xsArray);
+    pfds_sequence* xs = pfds_sequence_fromArrayList(vtable->sequence, xsArray);
+    // x, xs, xsArray
+
+    pfds_retain(x); pfds_retain(xs);
+    // x, xs, x, xs, xsArray
+
+    pfds_sequence* ys = pfds_sequence_pushFront(x, xs);
+    // ys, x, xs, xsArray
+
+    // ys, x, xs, xsArray
+    pfds_object* y;
+    bool result = pfds_sequence_popFront(&y, &ys, ys)
+        && pfds_cmp(x, y) == PFDS_EQ
+        && pfds_cmp(xs, ys) == PFDS_EQ;
+    // y, ys, x, xs, xsArray
+
+    pfds_release(xs);
+    pfds_release(y); pfds_release(ys);
+    // x, xsArray
+
+    return result;
+}
+
+int prop_sequence_pushFront(const pfds_objectvtable *vtable, pfds_object* x, pfds_ArrayList * xsArray) {
+    // x, xsArray
+    pfds_retain(xsArray);
+    pfds_sequence* xs = pfds_sequence_fromArrayList(vtable->sequence, xsArray);
+    // x, xs, xsArray
+
+    pfds_retain(x);
+    // x, x, xs, xsArray
+
+    pfds_sequence* ys = pfds_sequence_pushFront(x, xs);
+    // x, ys, xsArray
+
+    // x ys, xsArray
+    pfds_object* y = pfds_sequence_front(ys);
+    // x, ys, xsArray (borrow y ys)
+
+
+    bool result = y != NULL && pfds_cmp(x, y) == PFDS_EQ;
+
+    // x, ys, xsArray (borrow y ys)
+    pfds_release(ys);
+    // x, xsArray
+
+    return result;
+}
+
+
+void generateBoxDouble(pfds_Double** result, void* userData, int size, SplitMix64 *randGen) {
+    *result = pfds_Double_new(SplitMix64_nextDouble(randGen));
+}
+
+const CCHECK_Gen genBoxDouble = {
+    .genType = &ffi_type_pointer,
+    .generate = (void (*)(void*, void*, int, SplitMix64 *))
+        generateBoxDouble,
+    .show = pfds_defaultGenShow,
+    .dispose = pfds_defaultGenDispose,
+};
+
+void generateBoxUInt64(pfds_UInt64** result, void* userData, int size, SplitMix64 *randGen) {
+    *result = pfds_UInt64_new(SplitMix64_nextInt64(randGen));
+}
+
+const CCHECK_Gen genBoxUInt64 = {
+    .genType = &ffi_type_pointer,
+    .generate = (void (*)(void*, void*, int, SplitMix64 *))
+        generateBoxUInt64,
+    .show = pfds_defaultGenShow,
+    .dispose = pfds_defaultGenDispose,
+};
+
+void generateArrayList(pfds_ArrayList** result, CCHECK_Gen* elementGen, int size, SplitMix64 *randGen) {
+    if (size <= 0) {
+        *result = pfds_ArrayList_empty();
+    } else {
+        pfds_object** elements = (pfds_object**) calloc(sizeof(pfds_object*), size);
+        for (size_t i = 0 ; i < size ; i++) {
+            elementGen->generate(&elements[i], elementGen->userData, size, randGen);
+        }
+        *result = pfds_ArrayList_fromArrayEx(size, elements, true);
+    }
+}
+
+CCHECK_Gen * genArrayList(const CCHECK_Gen* elementGen) {
+    assert(elementGen->dispose == pfds_defaultGenDispose);
+
+    CCHECK_Gen* gen = (CCHECK_Gen*) malloc(sizeof(CCHECK_Gen));
+    gen->genType = &ffi_type_pointer;
+    gen->userData = (void*) elementGen;
+    gen->generate = (void (*)(void* , void*, int, SplitMix64 *))
+            generateArrayList;
+    gen->show = pfds_defaultGenShow;
+    gen->dispose = pfds_defaultGenDispose;
+
+    return gen;
+}
+
+
+int prop_sequence_pushPopBack(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, pfds_object* x) {
+    // xsArray, x
+    pfds_retain(xsArray);
+    pfds_sequence* xs = pfds_sequence_fromArrayList(vtable->sequence, xsArray);
+    // xs, xsArray, x
+
+    pfds_retain(x); pfds_retain(xs);
+    // x, xs, xs, xsArray, x
+
+    pfds_sequence* ys = pfds_sequence_pushBack(xs, x);
+    // ys, xs, xsArray, x
+
+    pfds_object* y;
+    bool result = pfds_sequence_popBack(&ys, &y, ys)
+        && pfds_cmp(x, y) == PFDS_EQ
+        && pfds_cmp(xs, ys) == PFDS_EQ;
+    // y, ys, xs, xsArray, x
+
+    pfds_release(xs);
+    pfds_release(y); pfds_release(ys);
+    // xsArray, x
+
+    return result;
+}
+
+int prop_sequence_pushBack(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, pfds_object* x) {
+    return false;
+}
+
+
+int prop_sequence_get(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, pfds_UInt64* i) {
+    return false;
+}
+
+int prop_sequence_getGet(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, pfds_UInt64* i) {
+    return false;
+}
+
+int prop_sequence_getSplit(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, pfds_UInt64* i) {
+    return false;
+}
+
+int prop_sequence_insertBeforeGet(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, pfds_object* x, pfds_UInt64* i) {
+    return false;
+}
+
+int prop_sequence_insertAtGet(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, pfds_object* x, pfds_UInt64* i) {
+    return false;
+}
+
+int prop_sequence_updateGet(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, pfds_object* x, pfds_UInt64* i) {
+    return false;
+}
+
+int prop_sequence_delete(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, pfds_UInt64* i) {
+    return false;
+}
+
+
+int prop_sequence_toString(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray) {
+    return false;
+}
+
+
+int prop_sequence_reduceLeft(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray) {
+    return false;
+}
+
+int prop_sequence_reduceRight(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray) {
+    return false;
+}
+
+int prop_sequence_reverse(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray) {
+    return false;
+}
+
+
+int prop_sequence_cmpRefl(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray) {
+    return false;
+}
+
+int prop_sequence_cmpLexicalShortest(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, pfds_ArrayList * ysArray) {
+    return false;
+}
+
+int prop_sequence_cmpLexicalPrefix(const pfds_objectvtable *vtable, pfds_ArrayList * xsArray, pfds_ArrayList * ysArray, pfds_ArrayList * zsArray) {
+    return false;
+}
+
+

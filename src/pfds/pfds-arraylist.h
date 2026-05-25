@@ -42,6 +42,7 @@ pfds_ArrayList* pfds_ArrayList_empty();
  */
 pfds_ArrayList* pfds_ArrayList_singleton(pfds_object* elem);
 
+
 /** append one element to an ArrayList
  *
  * \param init
@@ -68,6 +69,24 @@ pfds_ArrayList* pfds_ArrayList_mappend(pfds_ArrayList* l, pfds_ArrayList* r);
 pfds_ArrayList* pfds_ArrayList_fromArray(size_t size, pfds_object** elements);
 
 
+/** construct a new ArrayList from an array of the given objects.
+ *
+ *
+ * \param size
+ * \param elements
+ * \param owner the array supplied is allocated for the use of the new array.
+ * \invariant give(return) take(xs[0..n])
+ */
+pfds_ArrayList* pfds_ArrayList_fromArrayEx(size_t size, pfds_object* elements[], bool owner);
+
 pfds_ordering pfds_ArrayList_cmp(pfds_ArrayList* l, pfds_ArrayList* r);
+
+/** construct a new ArrayList from an array of the given objects.
+ *
+ * \param dict
+ * \param elements
+ * \invariant give(return) take(lst)
+ */
+pfds_sequence* pfds_sequence_fromArrayList(const pfds_sequencevtable* dict, pfds_ArrayList* elements);
 
 #endif

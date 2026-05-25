@@ -48,7 +48,14 @@ minor code-tweak todos:
 ccheck todos: 
 
  * rename most CCHECK to ccheck
- * proper gens for most simple types that fit in a long/(void*)
+ * size-related stuff.
+    * change the size given by test/forAll to be simply the iteration number
+    * higher order generators that interact with size according to some rules
+
+       * a schedule that can do some number of tests at a given size or size range.
+       * a modifier that can take an environment or configuration multiplier
+       * a generator that generates integers related to the given size.
+       * a generator that generates an array and some indices that are in bounds for a given size.
 
 some discussion about where i want to take ccheck:
 

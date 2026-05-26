@@ -1035,7 +1035,7 @@ void classyProp(
         const char* nm,
         const pfds_objectvtable *dict,
         int iterations,
-        int (*propFn)(const pfds_objectvtable*, ...),
+        bool (*propFn)(const pfds_objectvtable*, ...),
         const CCHECK_Gen ** gens) {
     size_t nargs = 0;
     if (gens != NULL) {

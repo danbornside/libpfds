@@ -351,7 +351,7 @@ extern void CCHECK_test_forAll_impl(
     int iteration;
     for (iteration = 0; iteration < iterations; iteration++) {
         // TODO: come up with a better way to give the size
-        int size = iteration >> 4;
+        int size = iteration;
 
         for (int argn = 0; argn < nargs; argn++) {
             SplitMix64 argGen;

@@ -108,6 +108,11 @@ struct testModule getTestSequenceModule () {
         .testModule = "sequence",
     };
 
+    // benchmark values are chosen here to run very quickly in an ordinary run
+    // with the default size multiplier of 1.0, but also all finish in max a
+    // few seconds each with whatever options are specified in `make bench`.
+    // pathologically bad benchmarks should only be allowed to run just long
+    // enough to show that they are pathological in the benchmark graphs.
     classyBenchmark(&testSequenceModule, "lookup",        &pfds_ArrayList_vtable,   10, 10000, bench_lookup);
     classyBenchmark(&testSequenceModule, "lookup",        &pfds_TreeList_vtable,   10, 10000, bench_lookup);
     classyBenchmark(&testSequenceModule, "queueLeft",     &pfds_TreeList_vtable,   10, 10000, bench_queueLeft);

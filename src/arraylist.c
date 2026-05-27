@@ -14,12 +14,13 @@
  * libpfds. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#define PFDS_INTERNAL
-
 #include <string.h>
-#include "pfds.h"
-#include "pfds/pfds-object-intl.h"
+#include <stdlib.h>
+
+#include "pfds/pfds-catenable.h"
 #include "pfds/pfds-arraylist.h"
+#include "pfds/pfds-object-intl.h"
+#include "misc.h"
 
 struct pfds_ArrayList {
     pfds_object object;

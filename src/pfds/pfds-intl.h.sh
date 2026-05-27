@@ -123,6 +123,12 @@ struct pfds_gcinfo {$(pfds_gcenabledconfig '
 };
 struct pfds_gcinfo pfds_getgcinfo(void);
 
+#define pfds_retain_array(n, elts) { for (int retainElts##__LINE__ = 0; retainElts##__LINE__ < n ; ++retainElts##__LINE__) \
+    pfds_retain((elts)[retainElts##__LINE__]); }
+
+#define pfds_release_array(n, elts) { for (int retainElts##__LINE__ = 0; retainElts##__LINE__ < n ; ++retainElts##__LINE__) \
+    pfds_release((elts)[retainElts##__LINE__]); }
+
 #endif
 EOF
 # vim: set syntax=bash sw=4 ts=4 et :

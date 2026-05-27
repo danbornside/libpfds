@@ -23,6 +23,11 @@
 #ifndef PFDS_ARRAYLIST_HEADER_INCLUDED
 #define PFDS_ARRAYLIST_HEADER_INCLUDED
 
+#include <stdbool.h>
+
+#include "pfds-object.h"
+#include "pfds-sequence.h"
+
 /** a simple, generally suboptimal implementation of a sequential container
  * implemented as a simple array of pointers. */
 typedef struct pfds_ArrayList pfds_ArrayList;

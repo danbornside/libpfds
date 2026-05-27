@@ -103,6 +103,9 @@ struct pfds_objectvtable {
  */
 int pfds_object_debugfputs(FILE* stream, pfds_object* self);
 
+#define pfds_debugfputs(file, self) pfds_object_debugfputs(file, (pfds_object*) self)
+#define pfds_debugputs(self) pfds_object_debugfputs(stdout, (pfds_object*) self)
+
 /** compare two objects
  *
  * @param l

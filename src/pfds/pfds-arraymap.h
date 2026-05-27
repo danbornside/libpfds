@@ -23,15 +23,26 @@
 #ifndef PFDS_ARRAYMAP_HEADER_INCLUDED
 #define PFDS_ARRAYMAP_HEADER_INCLUDED
 
+#include "pfds-mapping.h"
 #include "pfds-object.h"
 
 typedef struct pfds_ArrayMap pfds_ArrayMap;
 extern pfds_objectvtable pfds_ArrayMap_vtable;
 
 pfds_ArrayMap * pfds_ArrayMap_empty();
-pfds_ArrayMap * pfds_ArrayMap_singleton(struct pfds_object_pair item);
-pfds_ArrayMap * pfds_ArrayMap_fromArray(size_t size, struct pfds_object_pair items[]);
+pfds_ArrayMap * pfds_ArrayMap_singleton(pfds_object_pair item);
+pfds_ArrayMap * pfds_ArrayMap_fromArray(size_t size, pfds_object_pair items[]);
 pfds_ordering pfds_ArrayMap_cmp(pfds_ArrayMap* l, pfds_ArrayMap* r);
 int pfds_ArrayMap_debugfputs(FILE* stream, pfds_ArrayMap* self);
+
+enum pfds_ArrayMapCopyFlags {
+    AMCF_NONE = 0, // there are no available speedups
+    AMCF_OWNBUFFER = 1<<1, // item buffer was allocated for map
+    AMCF_SORTED = 1<<2, // items are already sorted
+    AMCF_UNIQUE = 1<<3, // items are already unique
+};
+
+pfds_ArrayMap * pfds_ArrayMap_fromArray_ex(size_t size, pfds_object_pair items[], enum pfds_ArrayMapCopyFlags flags);
+
 
 #endif

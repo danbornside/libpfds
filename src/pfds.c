@@ -14,12 +14,16 @@
  * libpfds. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#define PFDS_INTERNAL
 
-#include "pfds.h"
+#include "pfds/pfds-sequence.h"
+#include "pfds/pfds-mapping.h"
+#include "pfds/pfds-string.h"
+#include "pfds/pfds-catenable.h"
 #include "pfds/pfds-object-intl.h"
+#include "misc.h"
 
 #include <assert.h>
+#include <stdlib.h>
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
@@ -395,4 +399,35 @@ extern pfds_sequence* pfds_sequence_defaultDeleteAt(pfds_sequence* self, size_t 
 
 extern pfds_sequence* pfds_sequence_defaultInsertAfter(pfds_sequence* self, size_t n, pfds_object* x) {
     return pfds_sequence_insertBefore(self, n+1, x);
+}
+
+
+#define GUARD_MAPPING_METHOD(self, method) \
+    {   if (self == NULL) panic ("Null Reference::" #method); \
+        if (self->object.vtable == NULL || self->object.vtable->mapping == NULL) panic ("not a mapping: " #method); \
+        if (self->object.vtable->mapping->method == NULL) { \
+            fprintf(stderr, "%s  ", self->object.vtable->typename); \
+            panic ( "mapping->" #method " not implemented"); \
+        } \
+    }
+
+
+extern bool pfds_mapping_isEmpty (pfds_mapping* self) {
+    GUARD_MAPPING_METHOD(self, isEmpty);
+    return self->object.vtable->mapping->isEmpty(self);
+}
+
+extern size_t pfds_mapping_size (pfds_mapping* self) {
+    GUARD_MAPPING_METHOD(self, size);
+    return self->object.vtable->mapping->size(self);
+}
+
+pfds_object* pfds_mapping_lookup(pfds_mapping* self, pfds_object* key) {
+    GUARD_MAPPING_METHOD(self, lookup);
+    return self->object.vtable->mapping->lookup(self, key);
+}
+
+bool pfds_mapping_popMin(pfds_object_pair* item, pfds_mapping** rest, pfds_mapping* self) {
+    GUARD_MAPPING_METHOD(self, popMin);
+    return self->object.vtable->mapping->popMin(item, rest, self);
 }

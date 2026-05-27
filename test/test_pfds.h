@@ -17,6 +17,8 @@
 #ifndef TESTPFDS_HEADER_INCLUDED
 #define TESTPFDS_HEADER_INCLUDED
 
+#include <time.h>
+
 #include "pfds.h"
 #include "ccheck.h"
 
@@ -212,6 +214,7 @@ struct commonSuites {
 };
 
 struct testModule getTestSequenceModule ();
+struct testModule getTestMappingModule ();
 
 pfds_String * test_binop(void* ud, pfds_object* l, pfds_object * r);
 
@@ -223,5 +226,8 @@ pfds_UInt64* mkTestValue_UInt64(void* ud, int seed);
 
 int pfds_defaultGenShow(FILE* stream, void* userData, void* sample);
 void pfds_defaultGenDispose(void* userData, void* sample);
+
+extern const CCHECK_Gen genBoxDouble;
+extern const CCHECK_Gen genBoxUInt64;
 
 #endif

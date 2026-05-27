@@ -14,24 +14,13 @@
  * libpfds. If not, see <https://www.gnu.org/licenses/>.
  */
 
-/** pfds internals used for defining garbage collected types compatible with pfds.
- *
- * users of this library should not need to include this header.
- */
 
-#ifndef PFDS_OBJECTINTL_HEADER_INCLUDED
-#define PFDS_OBJECTINTL_HEADER_INCLUDED
+/* miscelaneious macros used throughout the implementation of pfds that are inappropriate to install globally */
 
-#include "pfds-object.h"
+/* assign to an outparameter pointer if it is not null and perform a fallback otherwise  */
+#define OPTIONAL_OUTPARAM2(var, val, garbage) if (var != NULL) { *var = val; } else { garbage ; }
 
-/** create a new uninitialised object
- *
- * \protected \memberof pfds_object
- * \param size size of object as returned by sizeof
- * \param vtable method dispatch table
- * \invariant give(return)
- *
- * */
-pfds_object* pfds_object_new(size_t size, const pfds_objectvtable* vtable);
+/* assign to an outparameter pointer if it is not null  */
+#define OPTIONAL_OUTPARAM(var, val) if (var != NULL) { *var = val; }
 
-#endif
+#define panic(msg) { fprintf(stderr, "PANIC %s:%d\n\t%s\n", __FILE__, __LINE__, msg); abort(); }

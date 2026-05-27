@@ -18,6 +18,7 @@
 // test infra for working generically with types that implement the sequence interface.
 
 #include <assert.h>
+#include <stdlib.h>
 
 #include "test_pfds.h"
 #include "pfds.h"
@@ -70,8 +71,6 @@ void bench_fillPushBack(struct benchState *bs, const pfds_objectvtable *vtable);
 void bench_shuffle(struct benchState *bs, const pfds_objectvtable *vtable);
 
 
-const CCHECK_Gen genBoxDouble;
-const CCHECK_Gen genBoxUInt64;
 CCHECK_Gen * genArrayList(const CCHECK_Gen* elements);
 
 bool prop_sequence_empty_isEmpty(const pfds_objectvtable *vtable);
@@ -178,13 +177,6 @@ struct testModule getTestSequenceModule () {
         { .testFn = test_gc_sequence_isEmpty, .desc = "isEmpty", },
         { 0 }
     };
-
-
-    // const CCHECK_Gen * gensIntInt[] = {
-    //     &genInt,
-    //     &genInt,
-    //     0,
-    // };
 
     // bit of reverse hungarian notation:
 
@@ -1047,30 +1039,6 @@ bool prop_sequence_pushFront(const pfds_objectvtable *vtable, pfds_object* x, pf
 }
 
 
-void generateBoxDouble(pfds_Double** result, void* userData, int size, SplitMix64 *randGen) {
-    *result = pfds_Double_new(SplitMix64_nextDouble(randGen));
-}
-
-const CCHECK_Gen genBoxDouble = {
-    .genType = &ffi_type_pointer,
-    .generate = (void (*)(void*, void*, int, SplitMix64 *))
-        generateBoxDouble,
-    .show = pfds_defaultGenShow,
-    .dispose = pfds_defaultGenDispose,
-};
-
-void generateBoxUInt64(pfds_UInt64** result, void* userData, int size, SplitMix64 *randGen) {
-    *result = pfds_UInt64_new(SplitMix64_nextInt64(randGen));
-}
-
-const CCHECK_Gen genBoxUInt64 = {
-    .genType = &ffi_type_pointer,
-    .generate = (void (*)(void*, void*, int, SplitMix64 *))
-        generateBoxUInt64,
-    .show = pfds_defaultGenShow,
-    .dispose = pfds_defaultGenDispose,
-};
-
 void generateArrayList(pfds_ArrayList** result, CCHECK_Gen* elementGen, int size, SplitMix64 *randGen) {
     if (size <= 0) {
         *result = pfds_ArrayList_empty();
@@ -1560,5 +1528,4 @@ bool prop_sequence_cmpLexicalPrefix(const pfds_objectvtable *vtable, pfds_ArrayL
 
     return yRz == xyRxz;
 }
-
 

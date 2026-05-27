@@ -14,12 +14,15 @@
  * libpfds. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#define PFDS_INTERNAL
-
-#include "pfds.h"
 #include "pfds/pfds-object-intl.h"
+#include "pfds/pfds-sequence.h"
+#include "pfds/pfds-catenable.h"
+#include "pfds/pfds-num.h"
 #include "pfds/pfds-treelist.h"
+#include "misc.h"
 
+#include <stdbool.h>
+#include <stdlib.h>
 #include <stdarg.h>
 #include <assert.h>
 
@@ -101,8 +104,6 @@ struct WrappedMeasure {
 };
 
 
-#define OPTIONAL_OUTPARAM2(var, val, garbage) if (var != NULL) { *var = val; } else { garbage ; }
-#define OPTIONAL_OUTPARAM(var, val) if (var != NULL) { *var = val; }
 #define ARRAYVIEW_3(n1, a1, n2, a2, n3, a3, ix) ( \
     ix < n1 ? a1[ix] : \
     ix < (n1+n2) ? a2[ix-n1] : \

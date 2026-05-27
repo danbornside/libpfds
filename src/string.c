@@ -15,10 +15,10 @@
  */
 
 #include <string.h>
+#include <stdlib.h>
 
-#define PFDS_INTERNAL
-
-#include "pfds.h"
+#include "pfds/pfds-string.h"
+#include "pfds/pfds-catenable.h"
 #include "pfds/pfds-object-intl.h"
 
 struct pfds_String {

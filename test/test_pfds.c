@@ -25,6 +25,7 @@
 #include <time.h>
 #include <argp.h>
 #include <ffi.h>
+#include <stdlib.h>
 
 #include "test_pfds.h"
 #include "pfds.h"
@@ -344,7 +345,7 @@ void test_vtable(const pfds_objectvtable* vtable) {
 
         // CU_ASSERT(vtable->mapping->unionFirst != NULL);
         // CU_ASSERT(vtable->mapping->intersectionFirst != NULL);
-        // CU_ASSERT(vtable->mapping->popMin != NULL);
+        CU_ASSERT(vtable->mapping->popMin != NULL);
         // CU_ASSERT(vtable->mapping->popMax != NULL);
         // CU_ASSERT(vtable->mapping->minKey != NULL);
         // CU_ASSERT(vtable->mapping->maxKey != NULL);
@@ -1154,6 +1155,7 @@ int main(int argc, char** argv)
     };
 
     addTestModule(cs, getTestSequenceModule());
+    addTestModule(cs, getTestMappingModule());
 
 
 
@@ -1230,3 +1232,29 @@ int main(int argc, char** argv)
             return result;
     }
 }
+
+void generateBoxDouble(pfds_Double** result, void* userData, int size, SplitMix64 *randGen) {
+    *result = pfds_Double_new(SplitMix64_nextDouble(randGen));
+}
+
+const CCHECK_Gen genBoxDouble = {
+    .genType = &ffi_type_pointer,
+    .generate = (void (*)(void*, void*, int, SplitMix64 *))
+        generateBoxDouble,
+    .show = pfds_defaultGenShow,
+    .dispose = pfds_defaultGenDispose,
+};
+
+
+void generateBoxUInt64(pfds_UInt64** result, void* userData, int size, SplitMix64 *randGen) {
+    *result = pfds_UInt64_new(SplitMix64_nextInt64(randGen));
+}
+
+const CCHECK_Gen genBoxUInt64 = {
+    .genType = &ffi_type_pointer,
+    .generate = (void (*)(void*, void*, int, SplitMix64 *))
+        generateBoxUInt64,
+    .show = pfds_defaultGenShow,
+    .dispose = pfds_defaultGenDispose,
+};
+

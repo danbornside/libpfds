@@ -55,22 +55,4 @@
 #include "pfds/pfds-string.h"
 #include "pfds/pfds-treelist.h"
 
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdio.h>
-#include <stdlib.h>
-
-#define pfds_retain_array(n, elts) { for (int retainElts##__LINE__ = 0; retainElts##__LINE__ < n ; ++retainElts##__LINE__) \
-    pfds_retain((elts)[retainElts##__LINE__]); }
-
-#define pfds_release_array(n, elts) { for (int retainElts##__LINE__ = 0; retainElts##__LINE__ < n ; ++retainElts##__LINE__) \
-    pfds_release((elts)[retainElts##__LINE__]); }
-
-
-
-
-#define pfds_debugfputs(file, self) pfds_object_debugfputs(file, (pfds_object*) self)
-#define pfds_debugputs(self) pfds_object_debugfputs(stdout, (pfds_object*) self)
-
-
 #endif

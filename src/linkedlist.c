@@ -20,13 +20,17 @@
  * pointer is less helpful in the way that this library works, where we need
  * something to hang a vtable off of.
  *
- * */
-#include <assert.h>
+ */
 
-#define PFDS_INTERNAL
-#include "pfds.h"
+#include <assert.h>
+#include <stdbool.h>
+#include <stdlib.h>
+
+#include "pfds/pfds-catenable.h"
+#include "pfds/pfds-sequence.h"
 #include "pfds/pfds-object-intl.h"
 #include "pfds/pfds-linkedlist.h"
+#include "misc.h"
 
 struct pfds_LinkedList
 {

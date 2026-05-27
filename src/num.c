@@ -14,9 +14,7 @@
  * libpfds. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#define PFDS_INTERNAL
-
-#include "pfds.h"
+#include "pfds/pfds-catenable.h"
 #include "pfds/pfds-object-intl.h"
 #include "pfds/pfds-num.h"
 

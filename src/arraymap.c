@@ -28,6 +28,11 @@ size_t ArrayMap_size(pfds_ArrayMap* self);
 pfds_object* ArrayMap_lookup(pfds_ArrayMap* self, pfds_object* key);
 bool ArrayMap_popMin(pfds_object_pair*, pfds_ArrayMap**, pfds_ArrayMap*);
 
+pfds_ArrayMap* ArrayMap_insert(pfds_ArrayMap* self, pfds_object* key, pfds_object* value);
+pfds_ArrayMap* ArrayMap_erase(pfds_ArrayMap* self, pfds_object* key);
+
+pfds_object_pair* ArrayMap_lookup_LE (pfds_ArrayMap* self, pfds_object *key);
+
 struct pfds_ArrayMap {
     pfds_object object;
     size_t size;
@@ -37,7 +42,7 @@ struct pfds_ArrayMap {
 pfds_mappingvtable ArrayMap_mapping = {
     .empty = (pfds_mapping* (*)())
         pfds_ArrayMap_empty,
-    .singleton = (pfds_mapping* (*)(pfds_object_pair))
+    .singleton = (pfds_mapping* (*)(pfds_object *key, pfds_object* value))
         pfds_ArrayMap_singleton,
     .fromArray = (pfds_mapping* (*)(size_t, pfds_object_pair*))
         pfds_ArrayMap_fromArray,
@@ -49,6 +54,11 @@ pfds_mappingvtable ArrayMap_mapping = {
         ArrayMap_lookup,
     .popMin = (bool (*)(pfds_object_pair*, pfds_mapping**, pfds_mapping*))
         ArrayMap_popMin,
+    .insert = (pfds_mapping* (*)(pfds_mapping* self, pfds_object* key, pfds_object* value))
+        ArrayMap_insert,
+    .erase = (pfds_mapping* (*)(pfds_mapping* self, pfds_object* key))
+        ArrayMap_erase,
+
 };
 
 pfds_objectvtable pfds_ArrayMap_vtable = {
@@ -171,9 +181,10 @@ pfds_ArrayMap * pfds_ArrayMap_fromArray(size_t size, pfds_object_pair items[]) {
     return pfds_ArrayMap_fromArray_ex(size, items, AMCF_NONE);
 }
 
-pfds_ArrayMap * pfds_ArrayMap_singleton(struct pfds_object_pair item) {
+pfds_ArrayMap * pfds_ArrayMap_singleton(pfds_object *key, pfds_object* value) {
     struct pfds_object_pair* items = (struct pfds_object_pair*) calloc(sizeof(struct pfds_object_pair), 1);
-    items[0] = item;
+    items[0].key = key;
+    items[0].value = value;
     return pfds_ArrayMap_fromArray_ex(1, items, AMCF_OWNBUFFER | AMCF_SORTED | AMCF_UNIQUE);
 }
 
@@ -204,11 +215,35 @@ bool ArrayMap_popMin(pfds_object_pair* item, pfds_ArrayMap** rest, pfds_ArrayMap
 }
 
 pfds_ordering pfds_ArrayMap_cmp(pfds_ArrayMap* l, pfds_ArrayMap* r) {
-    panic("TODO");
+    if (l->size < r->size) {
+        return PFDS_LT;
+    } else if (l->size > r->size) {
+        return PFDS_LT;
+    } else {
+        for (size_t i = 0 ; i < l->size ; i ++) {
+            pfds_ordering lRr = pfds_cmp(l->items[i].key, r->items[i].key);
+            if (lRr != PFDS_EQ) {
+                return lRr;
+            }
+            lRr = pfds_cmp(l->items[i].value, r->items[i].value);
+            if (lRr != PFDS_EQ) {
+                return lRr;
+            }
+        }
+        return PFDS_EQ;
+    }
 }
 
 int pfds_ArrayMap_debugfputs(FILE* stream, pfds_ArrayMap* self) {
-    panic("TODO");
+    int n = fprintf(stream, "{");
+    for (size_t i = 0; i < self->size; i ++) {
+        n += fprintf(stream, "%s", i <= 0 ? "" : ", ");
+        n += pfds_object_debugfputs(stream, self->items[i].key);
+        n += fprintf(stream, ":");
+        n += pfds_object_debugfputs(stream, self->items[i].value);
+    }
+    n += fprintf(stream, "}");
+    return n;
 }
 
 bool ArrayMap_isEmpty(pfds_ArrayMap* self) {
@@ -231,5 +266,109 @@ pfds_object* ArrayMap_lookup(pfds_ArrayMap* self, pfds_object* key) {
         return NULL;
     } else {
         return item->value;
+    }
+}
+
+pfds_mapping* pfds_mapping_fromArrayMap(const pfds_objectvtable *vtable, pfds_ArrayMap* arrayMap) {
+    for(size_t i = 0; i < arrayMap->size; i ++) {
+        pfds_retain(arrayMap->items[i].key);
+        pfds_retain(arrayMap->items[i].value);
+    }
+    pfds_mapping* self = vtable->mapping->fromArray(arrayMap->size, arrayMap->items);
+    pfds_release(arrayMap);
+    return self;
+}
+
+
+bool pred_cmp_LE(pfds_object* k, pfds_object_pair* i) {
+    return pfds_cmp(k, i->key) <= PFDS_EQ;
+}
+
+bool pred_cmp_LT(pfds_object* k, pfds_object_pair* i) {
+    return pfds_cmp(k, i->key) < PFDS_EQ;
+}
+
+pfds_object_pair* ArrayMap_lookup_LE (pfds_ArrayMap* self, pfds_object *key) {
+    return bsearch_alt(
+            key,
+            self->items,
+            self->size,
+            sizeof(pfds_object_pair),
+            (bool (*)(const void*, const void*)) pred_cmp_LE);
+}
+
+pfds_ArrayMap* ArrayMap_insert(pfds_ArrayMap* self, pfds_object* key, pfds_object* value) {
+    pfds_object_pair* pos = ArrayMap_lookup_LE(self, key);
+
+    pfds_object_pair* newItems;
+    size_t newSize;
+
+    if (pos < self->items + self->size && pfds_cmp(pos->key, key) == PFDS_EQ) {// key is found at pos
+        newSize = self->size;
+        newItems = (pfds_object_pair*) calloc(sizeof(pfds_object_pair), newSize);
+        size_t i;
+        for (i = 0 ; self->items + i < pos; i++) {
+            pfds_retain(self->items[i].key);
+            pfds_retain(self->items[i].value);
+            newItems[i] = self->items[i];
+        }
+        newItems[i].key = key;
+        newItems[i].value = value;
+        i++;
+        for (; i < self->size ; i++) {
+            pfds_retain(self->items[i].key);
+            pfds_retain(self->items[i].value);
+            newItems[i] = self->items[i];
+        }
+    } else { // pos points to correct address
+        newSize = self->size + 1;
+        newItems = (pfds_object_pair*) calloc(sizeof(pfds_object_pair), newSize);
+        size_t i;
+        for (i = 0 ; self->items + i < pos; i++) {
+            pfds_retain(self->items[i].key);
+            pfds_retain(self->items[i].value);
+            newItems[i] = self->items[i];
+        }
+        newItems[i].key = key;
+        newItems[i].value = value;
+        for (; i < self->size ; i++) {
+            pfds_retain(self->items[i].key);
+            pfds_retain(self->items[i].value);
+            newItems[i + 1] = self->items[i];
+        }
+    }
+
+    pfds_release(self);
+    return pfds_ArrayMap_fromArray_ex(newSize, newItems, AMCF_SORTED | AMCF_UNIQUE | AMCF_OWNBUFFER);
+}
+
+pfds_ArrayMap* ArrayMap_erase(pfds_ArrayMap* self, pfds_object* key) {
+    pfds_object_pair keyItem = { .key = key };
+    pfds_object_pair* pos = bsearch(
+            &keyItem,
+            self->items,
+            self->size,
+            sizeof(pfds_object_pair),
+            (int (*)(const void*,const void*)) pfds_objectpair_cmp);
+    if (pos == NULL) {
+        pfds_release(key);
+        return self;
+    } else {
+        size_t newSize = self->size - 1;
+        pfds_object_pair *newItems = (pfds_object_pair*) calloc(sizeof(pfds_object_pair), newSize);
+        size_t i;
+        for (i = 0 ; self->items + i < pos; i++) {
+            pfds_retain(self->items[i].key);
+            pfds_retain(self->items[i].value);
+            newItems[i] = self->items[i];
+        }
+        for (; i < self->size ; i++) {
+            pfds_retain(self->items[i].key);
+            pfds_retain(self->items[i].value);
+            newItems[i - 1] = self->items[i];
+        }
+        pfds_release(key);
+        pfds_release(self);
+        return pfds_ArrayMap_fromArray_ex(newSize, newItems, AMCF_SORTED | AMCF_UNIQUE | AMCF_OWNBUFFER);
     }
 }

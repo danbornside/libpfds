@@ -45,7 +45,7 @@ clean:
 	rm -f src/pfds/pfds-intl.h
 	rm -f libccheck.a libccheck.so
 	rm -f libpfds.so libpfds.a libccheck.so \
-		test_pfds test_splitmix \
+		test_pfds test_splitmix test_ccheck \
 		${OBJS_CCHECK} \
 		${OBJS_PFDS} \
 		${OBJS_TEST} \

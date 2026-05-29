@@ -142,6 +142,24 @@ const CCHECK_Gen genSeries = {
         disposeIntArray,
 };
 
+
+void generateSizedIntImpl(int* sample, void* ud, int size, SplitMix64* seed) {
+    if (size <= 1) {
+        *sample = 0;
+    }
+    *sample = (int) SplitMix64_nextInt64Range(seed, 0, size);
+}
+
+
+const struct CCHECK_Gen genSizedInt = {
+    .genType = &ffi_type_sint,
+    .generate = (void (*)(void* , void*, int , SplitMix64* ))
+        generateSizedIntImpl,
+    .show = (int (*)(FILE*, void*, void*))
+        showIntImpl,
+};
+
+
 void generateDoubleImpl(double* sample, void*, int size, SplitMix64* randGen) {
     *sample = SplitMix64_nextDouble(randGen);
 }

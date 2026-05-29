@@ -86,7 +86,7 @@ pfds_ArrayList* pfds_ArrayList_fromArrayEx(size_t size, pfds_object* elements[],
 
 pfds_ordering pfds_ArrayList_cmp(pfds_ArrayList* l, pfds_ArrayList* r);
 
-/** construct a new ArrayList from an array of the given objects.
+/** construct a new sequence from an ArrayList
  *
  * \param dict
  * \param elements

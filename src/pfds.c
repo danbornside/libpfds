@@ -431,3 +431,92 @@ bool pfds_mapping_popMin(pfds_object_pair* item, pfds_mapping** rest, pfds_mappi
     GUARD_MAPPING_METHOD(self, popMin);
     return self->object.vtable->mapping->popMin(item, rest, self);
 }
+
+pfds_mapping* pfds_mapping_insert(pfds_mapping* self, pfds_object* key, pfds_object* value) {
+    GUARD_MAPPING_METHOD(self, insert);
+    return self->object.vtable->mapping->insert(self, key, value);
+}
+
+int pfds_mapping_defaultDebugfputs(FILE* stream, pfds_mapping* self) {
+    pfds_retain(self);
+    pfds_object_pair item;
+    int n = fprintf(stream, "{");
+    while(pfds_mapping_popMin(&item, &self, self)) {
+        n += fprintf(stream, "%s", n == 1 ? "" : ", ");
+        n += pfds_object_debugfputs(stream, item.key);
+        n += fprintf(stream, ":");
+        n += pfds_object_debugfputs(stream, item.value);
+        pfds_release(item.key);
+        pfds_release(item.value);
+    }
+    n += fprintf(stream, "}");
+    return n;
+}
+
+pfds_ordering pfds_mapping_defaultCmp(pfds_mapping* l, pfds_mapping* r) {
+    size_t lSize = pfds_mapping_size(l);
+    size_t rSize = pfds_mapping_size(r);
+    if (lSize < rSize) {
+        return PFDS_LT;
+    } else if (lSize > rSize) {
+        return PFDS_LT;
+    } else if (l == 0) {
+        return PFDS_EQ;
+    } else {
+        pfds_retain(l);
+        pfds_retain(r);
+        // l0, r0, l, r
+        pfds_object_pair lItem, rItem;
+        pfds_ordering result;
+        do {
+            bool lSplit = pfds_mapping_popMin(&lItem, &l, l);
+            bool rSplit = pfds_mapping_popMin(&rItem, &r, r);
+            // lItem, l, rItem, r, l0, r0
+            if (lSplit != rSplit) {
+                panic("invalid popMin in pfds_mapping_defaultCmp");
+            }
+            if (!lSplit) {
+                //  l0, r0
+                return PFDS_EQ;
+            }
+            result = pfds_cmp(lItem.key, rItem.key);
+            if (result != PFDS_EQ) {
+                break;
+            }
+            result = pfds_cmp(lItem.value, rItem.value);
+            if (result != PFDS_EQ) {
+                break;
+            }
+        } while (true);
+        // lItem, l, rItem, r, l0, r0
+        pfds_release(lItem.key); pfds_release(lItem.value); pfds_release(l);
+        pfds_release(rItem.key); pfds_release(rItem.value); pfds_release(r);
+        return result;
+    }
+}
+
+
+
+void* bsearch_alt(const void *userData, const void *base, size_t n, size_t size, bool (*pred)(const void*, const void*)) {
+    if (size == 0) {
+        return (void*) base;
+    }
+    if (pred(userData, base)) {
+        return (void *) base;
+    }
+    if (!pred(userData, base + (n - 1) * size)) {
+        return (void *) (base + n * size);
+    }
+    size_t lb = 0;
+    size_t ub = (n-1);
+    while (lb + 1 < ub) {
+        size_t mid = (lb + ub) >> 1;
+        if (pred(userData, base + mid * size)) {
+            ub = mid;
+        } else {
+            lb = mid;
+        }
+    }
+    return (void *) (base + ub * size);
+
+}

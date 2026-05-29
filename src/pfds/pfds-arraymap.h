@@ -30,7 +30,7 @@ typedef struct pfds_ArrayMap pfds_ArrayMap;
 extern pfds_objectvtable pfds_ArrayMap_vtable;
 
 pfds_ArrayMap * pfds_ArrayMap_empty();
-pfds_ArrayMap * pfds_ArrayMap_singleton(pfds_object_pair item);
+pfds_ArrayMap * pfds_ArrayMap_singleton(pfds_object *key, pfds_object* value);
 pfds_ArrayMap * pfds_ArrayMap_fromArray(size_t size, pfds_object_pair items[]);
 pfds_ordering pfds_ArrayMap_cmp(pfds_ArrayMap* l, pfds_ArrayMap* r);
 int pfds_ArrayMap_debugfputs(FILE* stream, pfds_ArrayMap* self);
@@ -43,6 +43,14 @@ enum pfds_ArrayMapCopyFlags {
 };
 
 pfds_ArrayMap * pfds_ArrayMap_fromArray_ex(size_t size, pfds_object_pair items[], enum pfds_ArrayMapCopyFlags flags);
+
+/** construct a new mapping from an ArrayMap.
+ *
+ * \param dict
+ * \param items
+ * \invariant give(return) take(lst)
+ */
+pfds_mapping* pfds_mapping_fromArrayMap(const pfds_objectvtable *vtable, pfds_ArrayMap* arrayMap);
 
 
 #endif

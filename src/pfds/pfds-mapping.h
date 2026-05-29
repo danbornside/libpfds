@@ -41,7 +41,7 @@ typedef struct pfds_mappingvtable {
      */
     pfds_mapping* (*fromArray)(size_t n, pfds_object_pair items[]);
 
-    pfds_mapping* (*singleton)(pfds_object_pair item);
+    pfds_mapping* (*singleton)(pfds_object* key, pfds_object* value);
 
     /* construct a new empty mapping with no elements
      *
@@ -69,7 +69,7 @@ typedef struct pfds_mappingvtable {
     size_t (*size)(pfds_mapping*);
 
 
-    pfds_mapping* (*insert)(pfds_mapping*, pfds_object_pair);
+    pfds_mapping* (*insert)(pfds_mapping*, pfds_object* key, pfds_object* value);
 
     /** find the value associated with a particular key in a mapping, or NULL if the key is not present.
      *
@@ -109,5 +109,10 @@ size_t pfds_mapping_size(pfds_mapping* self);
 
 pfds_object* pfds_mapping_lookup(pfds_mapping* self, pfds_object* key);
 bool pfds_mapping_popMin(pfds_object_pair* item, pfds_mapping** rest, pfds_mapping* self);
+
+int pfds_mapping_defaultDebugfputs(FILE* stream, pfds_mapping* self);
+pfds_ordering pfds_mapping_defaultCmp(pfds_mapping* l, pfds_mapping* r);
+
+pfds_mapping* pfds_mapping_insert(pfds_mapping* self, pfds_object* key, pfds_object* value);
 
 #endif

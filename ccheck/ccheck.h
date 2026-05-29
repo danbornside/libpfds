@@ -152,7 +152,8 @@ CCHECK_Gen* genSize(CCHECK_Gen* gen, int(*sizeFn)(void*, int), void*);
 
 int clampBelow(void* ud, int sz);
 
-
+// generate an int bounded (approximately) by the current size.
+extern const CCHECK_Gen genSizedInt;
 
 
 /** add a test that checks a simple property

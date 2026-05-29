@@ -24,3 +24,31 @@
 #define OPTIONAL_OUTPARAM(var, val) if (var != NULL) { *var = val; }
 
 #define panic(msg) { fprintf(stderr, "PANIC %s:%d\n\t%s\n", __FILE__, __LINE__, msg); abort(); }
+
+/* alternative version of bsearch that always returns a pointer into the search list.
+ *
+ * rather than a compare function, bsearch_alt takes a monotone comparison
+ * function, which must satisfy:
+ *  -     forall i,j:[0..n). i < j && pred(base[i]) => pred(base[j])
+ *  - and forall i,j:[0..n). i < j && !pred(base[j]) => !pred(base[i])
+ *
+ * that is it must switch from false to true at one point in the list and stay
+ * true for all subsequent elements.
+ *
+ * to recover the behavior of bsearch(3), use a predicate like the following:
+ *
+ * > bool myPred(void* l, void* r) {
+ * >     return myCompare(l, r) >= 0;
+ * > }
+ *
+ * Also, users must beware that this function can return a result "past the
+ * end" of the search list, if the predicate is false for the whole search list
+ *
+ * @param userData an arbitrary value passed to pred's first argument
+ * @param base pointer to first entry in the search list
+ * @param n number of elements in search list
+ * @param size size of each element
+ * @param pred a monotonic predicate
+ * @returns a pointer to the first element for which pred is true.
+ */
+void* bsearch_alt(const void *userData, const void *base, size_t n, size_t size, bool (*pred)(const void*, const void*));

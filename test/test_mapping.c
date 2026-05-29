@@ -26,13 +26,27 @@ void test_gc_mapping_empty(const pfds_objectvtable*);
 void test_gc_mapping_isEmpty(const pfds_objectvtable*);
 void test_gc_mapping_size(const pfds_objectvtable*);
 void test_gc_mapping_singleton(const pfds_objectvtable*);
-
 void test_gc_mapping_popMin(const pfds_objectvtable*);
 void test_gc_mapping_popMinEmpty(const pfds_objectvtable*);
+void test_gc_mapping_toString(const pfds_objectvtable*);
+void test_gc_mapping_dfltToString(const pfds_objectvtable*);
+void test_gc_mapping_cmp(const pfds_objectvtable*);
+void test_gc_mapping_insertNew(const pfds_objectvtable*);
+void test_gc_mapping_insertReplace(const pfds_objectvtable*);
+void test_gc_mapping_insertPastEnd(const pfds_objectvtable*);
 
 bool prop_mapping_empty_isEmpty(const pfds_objectvtable *vtable);
 bool prop_mapping_singletonSize(const pfds_objectvtable *vtable, pfds_object_pair);
 bool prop_mapping_singletonGet(const pfds_objectvtable *vtable, pfds_object_pair);
+bool prop_mapping_popMin(const pfds_objectvtable*, pfds_ArrayMap*);
+bool prop_mapping_debugfputs(const pfds_objectvtable*, pfds_ArrayMap* xsArray);
+bool prop_mapping_size(const pfds_objectvtable*, pfds_ArrayMap* xsArray);
+
+bool prop_mapping_cmpSize(const pfds_objectvtable*, pfds_ArrayMap* xsArray, pfds_ArrayMap* ysArray);
+bool prop_mapping_cmpKeys(const pfds_objectvtable*, pfds_ArrayMap* xsArray,
+        pfds_object* k1, pfds_object* k2, pfds_object* val);
+bool prop_mapping_cmpValues(const pfds_objectvtable*, pfds_ArrayMap* xsArray,
+        pfds_object* k1, pfds_object* k2, pfds_object* v1, pfds_object* v2);
 
 CCHECK_Gen* genObjectPair(const CCHECK_Gen* k, const CCHECK_Gen* v);
 CCHECK_Gen* genArrayMap(const CCHECK_Gen* k, const CCHECK_Gen* v);
@@ -59,6 +73,13 @@ struct testModule getTestMappingModule () {
         { .testFn = test_gc_mapping_singleton, .desc = "singleton", },
         { .testFn = test_gc_mapping_popMin, .desc = "popMin", },
         { .testFn = test_gc_mapping_popMinEmpty, .desc = "popMin empty", },
+        { .testFn = test_gc_mapping_toString, .desc = "toString", },
+        { .testFn = test_gc_mapping_dfltToString, .desc = "defaultToString", },
+        { .testFn = test_gc_mapping_cmp, .desc = "cmp", },
+        { .testFn = test_gc_mapping_insertNew, .desc = "insertNew", },
+        { .testFn = test_gc_mapping_insertReplace, .desc = "insertReplace", },
+        { .testFn = test_gc_mapping_insertPastEnd, .desc = "insertPastEnd", },
+
         { 0 }
     };
 
@@ -67,18 +88,26 @@ struct testModule getTestMappingModule () {
     gen_Item[0] = (CCHECK_Gen*) genObjectPair(&genBoxUInt64, &genBoxDouble);
     gen_Item[1] = 0;
 
+    static CCHECK_Gen * gen_Map[2];
+    gen_Map[0] = (CCHECK_Gen*) genArrayMap(&genBoxUInt64, &genBoxDouble);
+    gen_Map[1] = 0;
+
     typedef bool (*propMappingFn)(const pfds_objectvtable*, ...);
     struct propMappingMethods {
-        // void (*propFn)(const pfds_objectvtable*, ...);
         propMappingFn propFn;
         const char* desc;
         CCHECK_Gen ** gens;
     } propMappingMethods[] = {
         { .propFn = (propMappingFn) prop_mapping_empty_isEmpty, .desc = "isEmpty(empty)", .gens = 0 },
-        { .propFn = (propMappingFn) prop_mapping_singletonSize, .desc = "prop_mapping_singletonSize",
-            gen_Item },
-        { .propFn = (propMappingFn) prop_mapping_singletonGet, .desc = "prop_mapping_singletonGet",
-            gen_Item },
+        { .propFn = (propMappingFn) prop_mapping_singletonSize, .desc = "singletonSize",
+            .gens = gen_Item },
+        { .propFn = (propMappingFn) prop_mapping_singletonGet, .desc = "singletonGet",
+            .gens = gen_Item },
+        { .propFn = (propMappingFn)  prop_mapping_popMin, .desc = "popMin",
+            .gens = gen_Map },
+        { .propFn = (propMappingFn)  prop_mapping_debugfputs, .desc = "debugfputs",
+            .gens = gen_Map },
+
         { 0 },
     };
 
@@ -132,10 +161,9 @@ void test_gc_mapping_size(const pfds_objectvtable* dict) {
 }
 
 void test_gc_mapping_singleton(const pfds_objectvtable* dict) {
-    pfds_object *x = (pfds_object*) pfds_String_fromConstCstring("x");
-    pfds_object *y = (pfds_object*) pfds_Double_new(5);
-    pfds_object_pair item = {.key = x, .value = y};
-    pfds_mapping* xs = dict->mapping->singleton(item);
+    pfds_mapping* xs = dict->mapping->singleton(
+            (pfds_object*) pfds_String_fromConstCstring("x"),
+            (pfds_object*) pfds_Double_new(5));
     pfds_release(xs);
 }
 
@@ -150,7 +178,7 @@ bool prop_mapping_empty_isEmpty(const pfds_objectvtable *vtable) {
 bool prop_mapping_singletonSize(const pfds_objectvtable *vtable, pfds_object_pair item) {
     pfds_retain(item.key);
     pfds_retain(item.value);
-    pfds_mapping *xs = vtable->mapping->singleton(item);
+    pfds_mapping *xs = vtable->mapping->singleton(item.key, item.value);
     bool result = pfds_mapping_size(xs) == 1;
     pfds_release(xs);
     return result;
@@ -158,7 +186,7 @@ bool prop_mapping_singletonSize(const pfds_objectvtable *vtable, pfds_object_pai
 bool prop_mapping_singletonGet(const pfds_objectvtable *vtable, pfds_object_pair item) {
     pfds_retain(item.key);
     pfds_retain(item.value);
-    pfds_mapping *xs = vtable->mapping->singleton(item);
+    pfds_mapping *xs = vtable->mapping->singleton(item.key, item.value);
     pfds_object *y = pfds_mapping_lookup(xs, item.key);
     bool result = y != NULL
         && pfds_cmp(item.value, y) == PFDS_EQ;
@@ -250,12 +278,12 @@ CCHECK_Gen* genArrayMap(const CCHECK_Gen* k, const CCHECK_Gen* v) {
 }
 
 void test_gc_mapping_popMin(const pfds_objectvtable* dict) {
-    pfds_object *x = (pfds_object*) pfds_String_fromConstCstring("x");
-    pfds_object *y = (pfds_object*) pfds_Double_new(5);
-    pfds_object_pair item = {.key = x, .value = y};
-    pfds_mapping* xs = dict->mapping->singleton(item);
+    pfds_mapping* xs = dict->mapping->singleton(
+            (pfds_object*) pfds_String_fromConstCstring("x"),
+            (pfds_object*) pfds_Double_new(5));
     // xs
 
+    pfds_object_pair item;
     CU_ASSERT(pfds_mapping_popMin(&item, &xs, xs));
     // item.key item.value xs
 
@@ -263,10 +291,140 @@ void test_gc_mapping_popMin(const pfds_objectvtable* dict) {
     pfds_release(item.value);
     pfds_release(xs);
 }
+
 void test_gc_mapping_popMinEmpty(const pfds_objectvtable* dict) {
     pfds_object_pair item;
     pfds_mapping* xs = dict->mapping->empty();
 
     CU_ASSERT_FALSE(pfds_mapping_popMin(&item, &xs, xs));
+}
+
+bool prop_mapping_debugfputs(const pfds_objectvtable* dict, pfds_ArrayMap* xsArray) {
+    pfds_retain(xsArray);
+    pfds_mapping* xs = pfds_mapping_fromArrayMap(dict, xsArray);
+
+    char* buf;
+    size_t size = 0;
+    FILE* stream = open_memstream(&buf, &size);
+    pfds_object_debugfputs(stream, (pfds_object*) xs);
+    fclose(stream);
+
+    char* buf2;
+    size_t size2 = 0;
+    FILE* stream2 = open_memstream(&buf2, &size2);
+    pfds_mapping_defaultDebugfputs(stream2, xs);
+    fclose(stream2);
+
+    bool result = strcmp(buf, buf2);
+
+    free(buf); free(buf2);
+    pfds_release(xs);
+
+    return result == 0;
+}
+
+void test_gc_mapping_toString(const pfds_objectvtable* dict) {
+    pfds_mapping* xs = dict->mapping->singleton(
+            (pfds_object*) pfds_String_fromConstCstring("x"),
+            (pfds_object*) pfds_Double_new(5));
+    pfds_String* xsStr = pfds_object_toString((pfds_object*) xs);
+    pfds_release(xs);
+    pfds_release(xsStr);
+}
+
+void test_gc_mapping_dfltToString(const pfds_objectvtable* dict) {
+    pfds_mapping* xs = dict->mapping->singleton(
+            (pfds_object*) pfds_String_fromConstCstring("x"),
+            (pfds_object*) pfds_Double_new(5));
+
+    char* buf2;
+    size_t size2 = 0;
+    FILE* stream2 = open_memstream(&buf2, &size2);
+    pfds_mapping_defaultDebugfputs(stream2, xs);
+    fclose(stream2);
+    free(buf2);
+
+    pfds_release(xs);
+}
+
+void test_gc_mapping_cmp(const pfds_objectvtable* dict) {
+    pfds_mapping* xs = dict->mapping->singleton(
+            (pfds_object*) pfds_String_fromConstCstring("x"),
+            (pfds_object*) pfds_Double_new(5));
+    pfds_mapping* zs = dict->mapping->singleton(
+            (pfds_object*) pfds_String_fromConstCstring("x"),
+            (pfds_object*) pfds_Double_new(6));
+
+    pfds_cmp(xs, zs);
+    pfds_mapping_defaultCmp(xs, zs);
+    pfds_release(xs);
+    pfds_release(zs);
+}
+
+bool prop_mapping_popMin(const pfds_objectvtable* dict, pfds_ArrayMap* xsArray) {
+    pfds_retain(xsArray);
+    pfds_mapping* xs = pfds_mapping_fromArrayMap(dict, xsArray);
+
+    pfds_object_pair currentItem;
+    if(!pfds_mapping_popMin(&currentItem, &xs, xs)) {
+        return true;
+    }
+    pfds_object_pair nextItem;
+    while(pfds_mapping_popMin(&nextItem, &xs, xs)) {
+        if (pfds_cmp(currentItem.key, nextItem.key) != PFDS_LT) {
+            pfds_release(currentItem.key); pfds_release(currentItem.value);
+            pfds_release(nextItem.key); pfds_release(nextItem.value);
+            pfds_release(xs);
+            return false;
+        }
+        pfds_release(currentItem.key); pfds_release(currentItem.value);
+        currentItem = nextItem;
+    }
+
+    pfds_release(currentItem.key);
+    pfds_release(currentItem.value);
+    return true;
+
+}
+
+void test_gc_mapping_insertNew(const pfds_objectvtable* dict) {
+
+    pfds_mapping* xs = dict->mapping->singleton(
+            (pfds_object*) pfds_String_fromConstCstring("b"),
+            (pfds_object*) pfds_Double_new(5));
+
+    xs = pfds_mapping_insert(
+            xs,
+            (pfds_object*) pfds_String_fromConstCstring("a"),
+            (pfds_object*) pfds_Double_new(6));
+
+    pfds_release(xs);
+}
+void test_gc_mapping_insertReplace(const pfds_objectvtable* dict) {
+
+    pfds_mapping* xs = dict->mapping->singleton(
+            (pfds_object*) pfds_String_fromConstCstring("x"),
+            (pfds_object*) pfds_Double_new(5));
+
+    xs = pfds_mapping_insert(
+            xs,
+            (pfds_object*) pfds_String_fromConstCstring("x"),
+            (pfds_object*) pfds_Double_new(6));
+
+    pfds_release(xs);
+}
+
+void test_gc_mapping_insertPastEnd(const pfds_objectvtable* dict) {
+
+    pfds_mapping* xs = dict->mapping->singleton(
+            (pfds_object*) pfds_String_fromConstCstring("a"),
+            (pfds_object*) pfds_Double_new(5));
+
+    xs = pfds_mapping_insert(
+            xs,
+            (pfds_object*) pfds_String_fromConstCstring("b"),
+            (pfds_object*) pfds_Double_new(5));
+
+    pfds_release(xs);
 }
 

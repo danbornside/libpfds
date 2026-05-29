@@ -1258,3 +1258,22 @@ const CCHECK_Gen genBoxUInt64 = {
     .dispose = pfds_defaultGenDispose,
 };
 
+
+void generateBoxUInt64With(pfds_UInt64** result, CCHECK_Gen* genUInt64, int size, SplitMix64 *randGen) {
+    uint64_t val = 0;
+    genUInt64->generate(&val, genUInt64->userData, size, randGen);
+    *result = pfds_UInt64_new(val);
+}
+
+
+const CCHECK_Gen *genBoxUInt64With(const CCHECK_Gen* genUInt64) {
+    CCHECK_Gen* genBoxed = (CCHECK_Gen*) malloc(sizeof(CCHECK_Gen));
+    genBoxed->genType = &ffi_type_pointer,
+    genBoxed->generate = (void (*)(void*, void*, int, SplitMix64 *))
+        generateBoxUInt64With,
+    genBoxed->show = pfds_defaultGenShow,
+    genBoxed->dispose = pfds_defaultGenDispose,
+    genBoxed->userData = (void*) genUInt64;
+
+    return genBoxed;
+}

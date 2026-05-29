@@ -230,4 +230,6 @@ void pfds_defaultGenDispose(void* userData, void* sample);
 extern const CCHECK_Gen genBoxDouble;
 extern const CCHECK_Gen genBoxUInt64;
 
+const CCHECK_Gen *genBoxUInt64With(const CCHECK_Gen* genUInt64);
+
 #endif

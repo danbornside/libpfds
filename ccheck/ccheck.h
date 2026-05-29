@@ -148,7 +148,7 @@ CCHECK_Gen* genDoubleRange(double, double);
 CCHECK_Gen* genArray(CCHECK_Gen*);
 
 // wrap a generator that passes a different size using a callback function.
-CCHECK_Gen* genSize(CCHECK_Gen* gen, int(*sizeFn)(void*, int), void*);
+CCHECK_Gen* genSize(const CCHECK_Gen* gen, int(*sizeFn)(void*, int), void*);
 
 int clampBelow(void* ud, int sz);
 

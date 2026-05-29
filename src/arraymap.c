@@ -19,6 +19,7 @@
 #include "misc.h"
 
 #include <string.h>
+#include <assert.h>
 #include <stdlib.h>
 
 
@@ -218,7 +219,7 @@ pfds_ordering pfds_ArrayMap_cmp(pfds_ArrayMap* l, pfds_ArrayMap* r) {
     if (l->size < r->size) {
         return PFDS_LT;
     } else if (l->size > r->size) {
-        return PFDS_LT;
+        return PFDS_GT;
     } else {
         for (size_t i = 0 ; i < l->size ; i ++) {
             pfds_ordering lRr = pfds_cmp(l->items[i].key, r->items[i].key);
@@ -371,4 +372,9 @@ pfds_ArrayMap* ArrayMap_erase(pfds_ArrayMap* self, pfds_object* key) {
         pfds_release(self);
         return pfds_ArrayMap_fromArray_ex(newSize, newItems, AMCF_SORTED | AMCF_UNIQUE | AMCF_OWNBUFFER);
     }
+}
+
+pfds_object_pair pfds_ArrayMap_getItem(pfds_ArrayMap* self, size_t i) {
+    assert(self->size > i);
+    return self->items[i];
 }

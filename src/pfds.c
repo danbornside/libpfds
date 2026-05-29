@@ -437,6 +437,11 @@ pfds_mapping* pfds_mapping_insert(pfds_mapping* self, pfds_object* key, pfds_obj
     return self->object.vtable->mapping->insert(self, key, value);
 }
 
+pfds_mapping* pfds_mapping_erase(pfds_mapping* self, pfds_object* key) {
+    GUARD_MAPPING_METHOD(self, erase);
+    return self->object.vtable->mapping->erase(self, key);
+}
+
 int pfds_mapping_defaultDebugfputs(FILE* stream, pfds_mapping* self) {
     pfds_retain(self);
     pfds_object_pair item;
@@ -459,7 +464,7 @@ pfds_ordering pfds_mapping_defaultCmp(pfds_mapping* l, pfds_mapping* r) {
     if (lSize < rSize) {
         return PFDS_LT;
     } else if (lSize > rSize) {
-        return PFDS_LT;
+        return PFDS_GT;
     } else if (l == 0) {
         return PFDS_EQ;
     } else {
@@ -498,7 +503,8 @@ pfds_ordering pfds_mapping_defaultCmp(pfds_mapping* l, pfds_mapping* r) {
 
 
 void* bsearch_alt(const void *userData, const void *base, size_t n, size_t size, bool (*pred)(const void*, const void*)) {
-    if (size == 0) {
+    assert(size > 0);
+    if (n == 0) {
         return (void*) base;
     }
     if (pred(userData, base)) {

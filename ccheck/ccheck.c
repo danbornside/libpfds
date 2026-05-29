@@ -146,8 +146,9 @@ const CCHECK_Gen genSeries = {
 void generateSizedIntImpl(int* sample, void* ud, int size, SplitMix64* seed) {
     if (size <= 1) {
         *sample = 0;
+    } else {
+        *sample = (int) SplitMix64_nextInt64Range(seed, 0, size);
     }
-    *sample = (int) SplitMix64_nextInt64Range(seed, 0, size);
 }
 
 
@@ -632,7 +633,7 @@ extern CCHECK_Gen* genArray(CCHECK_Gen* elementGen) {
 
 struct Gen_Size {
     CCHECK_Gen gen;
-    CCHECK_Gen *childGen;
+    const CCHECK_Gen *childGen;
     int(*sizeFn)(void*, int);
     void* sizeFnData;
 };
@@ -648,7 +649,7 @@ void disposeSize(struct Gen_Size* myGen, void* sample) {
     myGen->childGen->dispose(myGen->childGen->userData, sample);
 }
 
-CCHECK_Gen* genSize(CCHECK_Gen* childGen, int(*sizeFn)(void*, int), void* sizeFnData) {
+CCHECK_Gen* genSize(const CCHECK_Gen* childGen, int(*sizeFn)(void*, int), void* sizeFnData) {
     struct Gen_Size * myGen = (struct Gen_Size *) malloc(sizeof(struct Gen_Size));
     myGen->gen.userData = myGen;
     myGen->gen.genType = childGen->genType;

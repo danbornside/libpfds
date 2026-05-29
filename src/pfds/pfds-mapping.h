@@ -114,5 +114,6 @@ int pfds_mapping_defaultDebugfputs(FILE* stream, pfds_mapping* self);
 pfds_ordering pfds_mapping_defaultCmp(pfds_mapping* l, pfds_mapping* r);
 
 pfds_mapping* pfds_mapping_insert(pfds_mapping* self, pfds_object* key, pfds_object* value);
+pfds_mapping* pfds_mapping_erase(pfds_mapping* self, pfds_object* key);
 
 #endif

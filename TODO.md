@@ -1,4 +1,26 @@
-For this to be in a releasable state, version 0.9 or whatever, i want to have the following things:
+## The absoltely bleeding edge of what I am currently actually "doing"
+
+
+* flesh out a mapping typeclass, arraymap instance, treemap instance.
+
+## stuff i'm not doing this instant but i know i should probably have based on immediate needs
+
+* properly clean up `test_pfds.c`
+    * `test_num` for numbery things
+    * `test_string` for stringey things
+    * `test_cateable` for monoidy things
+    * `test_fingertree` for fingery details
+    * some kinda "this type *should* have this interface, verify that it has that" instead of the current typedef test.
+* decruft the .gens field in prop framework shit.  actually we don't need that record at all probably.
+* property test that verifies that debugfputs returns the actual number of chars printed.
+* test genSize
+* verify good coverage of codebase on just properties, just gc, just benchmarks.
+* `test_num` module probably.
+* `test_catenable` module (ezpz: lIdent, rIdent, lAssoc, rAssoc)
+* `test_compareable` module (refl, trans,
+* ccheck needs a histogram feature, run a property test until a specified number of bins have been filled to a specified size.
+
+## For this to be in a releasable state, version 0.9 or whatever, i want to have the following things:
 
 * fingertree sequence/mapping
 * enforce a strict naming convention:

@@ -34,6 +34,8 @@ void test_gc_mapping_cmp(const pfds_objectvtable*);
 void test_gc_mapping_insertNew(const pfds_objectvtable*);
 void test_gc_mapping_insertReplace(const pfds_objectvtable*);
 void test_gc_mapping_insertPastEnd(const pfds_objectvtable*);
+void test_gc_mapping_lookup(const pfds_objectvtable*);
+void test_gc_mapping_lookupMiss(const pfds_objectvtable*);
 
 bool prop_mapping_empty_isEmpty(const pfds_objectvtable *vtable);
 bool prop_mapping_singletonSize(const pfds_objectvtable *vtable, pfds_object_pair);
@@ -41,15 +43,28 @@ bool prop_mapping_singletonGet(const pfds_objectvtable *vtable, pfds_object_pair
 bool prop_mapping_popMin(const pfds_objectvtable*, pfds_ArrayMap*);
 bool prop_mapping_debugfputs(const pfds_objectvtable*, pfds_ArrayMap* xsArray);
 bool prop_mapping_size(const pfds_objectvtable*, pfds_ArrayMap* xsArray);
-
 bool prop_mapping_cmpSize(const pfds_objectvtable*, pfds_ArrayMap* xsArray, pfds_ArrayMap* ysArray);
 bool prop_mapping_cmpKeys(const pfds_objectvtable*, pfds_ArrayMap* xsArray,
         pfds_object* k1, pfds_object* k2, pfds_object* val);
 bool prop_mapping_cmpValues(const pfds_objectvtable*, pfds_ArrayMap* xsArray,
         pfds_object* k1, pfds_object* k2, pfds_object* v1, pfds_object* v2);
+bool prop_mapping_lookup(const pfds_objectvtable *vtable, pfds_ArrayMap*, pfds_object* k);
 
-CCHECK_Gen* genObjectPair(const CCHECK_Gen* k, const CCHECK_Gen* v);
-CCHECK_Gen* genArrayMap(const CCHECK_Gen* k, const CCHECK_Gen* v);
+const CCHECK_Gen* genObjectPair(const CCHECK_Gen* k, const CCHECK_Gen* v);
+const CCHECK_Gen* genArrayMap(const CCHECK_Gen* k, const CCHECK_Gen* v);
+
+const CCHECK_Gen** gens(size_t nargs, ...) {
+    CCHECK_Gen** gens = (CCHECK_Gen**) calloc(sizeof(CCHECK_Gen*), nargs+1);
+
+    va_list args;
+    va_start(args, (size_t) nargs);
+    for(int i = 0; i < nargs; ++i) {
+        gens[i] = va_arg(args, struct CCHECK_Gen*);
+    }
+    va_end(args);
+    gens[nargs] = NULL;
+    return (const CCHECK_Gen**) gens;
+}
 
 struct testModule getTestMappingModule () {
     struct testModule testSequenceModule = {
@@ -80,23 +95,44 @@ struct testModule getTestMappingModule () {
         { .testFn = test_gc_mapping_insertReplace, .desc = "insertReplace", },
         { .testFn = test_gc_mapping_insertPastEnd, .desc = "insertPastEnd", },
 
+        { .testFn = test_gc_mapping_lookup, .desc = "lookup" },
+        { .testFn = test_gc_mapping_lookupMiss, .desc = "lookupMiss" },
+
         { 0 }
     };
 
+    const CCHECK_Gen* genKey = &genBoxUInt64;
+    // const CCHECK_Gen* genSzKey = genBoxUInt64With(genSize(&genSizedInt, clampBelow, (void*) 1));
+    const CCHECK_Gen* genSzKey = genBoxUInt64With(&genSizedInt);
+    const CCHECK_Gen* genValue = &genBoxDouble;
 
-    static CCHECK_Gen * gen_Item[2];
-    gen_Item[0] = (CCHECK_Gen*) genObjectPair(&genBoxUInt64, &genBoxDouble);
-    gen_Item[1] = 0;
+    const CCHECK_Gen* genItem = genObjectPair(genKey, genValue);
+    const CCHECK_Gen* genMap = genArrayMap(genKey, genValue);
 
-    static CCHECK_Gen * gen_Map[2];
-    gen_Map[0] = (CCHECK_Gen*) genArrayMap(&genBoxUInt64, &genBoxDouble);
-    gen_Map[1] = 0;
+    // the idea is that generating with a size like this increases the
+    // propability of colissions between parallel maps.
+    const CCHECK_Gen* genSzMap = genArrayMap(genSzKey, genValue);
+
+    const CCHECK_Gen** gen_Item = gens(1, genItem);
+    const CCHECK_Gen** gen_Map = gens(1, genMap);
+
+    // static CCHECK_Gen * gen_Item[2];
+    // gen_Item[0] = (CCHECK_Gen*) ;
+    // gen_Item[1] = 0;
+
+    // static CCHECK_Gen * gen_Map[2];
+    // gen_Map[0] = (CCHECK_Gen*) genArrayMap(&genBoxUInt64, &genBoxDouble);
+    // gen_Map[1] = 0;
+
+    // static CCHECK_Gen * gen_Map_Map[2];
+    // static CCHECK_Gen * gen_Map[2];
+    // static CCHECK_Gen * gen_Map[2];
 
     typedef bool (*propMappingFn)(const pfds_objectvtable*, ...);
     struct propMappingMethods {
         propMappingFn propFn;
         const char* desc;
-        CCHECK_Gen ** gens;
+        const CCHECK_Gen ** gens;
     } propMappingMethods[] = {
         { .propFn = (propMappingFn) prop_mapping_empty_isEmpty, .desc = "isEmpty(empty)", .gens = 0 },
         { .propFn = (propMappingFn) prop_mapping_singletonSize, .desc = "singletonSize",
@@ -107,6 +143,15 @@ struct testModule getTestMappingModule () {
             .gens = gen_Map },
         { .propFn = (propMappingFn)  prop_mapping_debugfputs, .desc = "debugfputs",
             .gens = gen_Map },
+
+        { .propFn = (propMappingFn) prop_mapping_size, .desc = "size", .gens = gen_Map },
+        { .propFn = (propMappingFn) prop_mapping_cmpSize, .desc = "cmpSize",
+            .gens = gens(2, genSzMap, genSzMap) },
+        { .propFn = (propMappingFn) prop_mapping_cmpKeys, .desc = "cmpKeys",
+            .gens = gens(4, genMap, genKey, genKey, genValue) },
+        { .propFn = (propMappingFn) prop_mapping_cmpValues, .desc = "cmpValues",
+            .gens = gens(5, genMap, genKey, genKey, genValue, genValue) },
+        { .propFn = (propMappingFn) prop_mapping_lookup, .desc = "lookup", .gens = gens(2, genSzMap, genSzKey) },
 
         { 0 },
     };
@@ -142,26 +187,26 @@ struct testModule getTestMappingModule () {
     return testSequenceModule;
 }
 
-void test_gc_mapping_empty(const pfds_objectvtable* dict) {
-    pfds_mapping* xs = dict->mapping->empty();
+void test_gc_mapping_empty(const pfds_objectvtable* vtable) {
+    pfds_mapping* xs = vtable->mapping->empty();
     pfds_release(xs);
 }
 
-void test_gc_mapping_isEmpty(const pfds_objectvtable* dict) {
-    pfds_mapping* xs = dict->mapping->empty();
+void test_gc_mapping_isEmpty(const pfds_objectvtable* vtable) {
+    pfds_mapping* xs = vtable->mapping->empty();
     CU_ASSERT(pfds_mapping_isEmpty(xs));
     pfds_release(xs);
 }
 
-void test_gc_mapping_size(const pfds_objectvtable* dict) {
-    pfds_mapping* xs = dict->mapping->empty();
+void test_gc_mapping_size(const pfds_objectvtable* vtable) {
+    pfds_mapping* xs = vtable->mapping->empty();
     CU_ASSERT_EQUAL(pfds_mapping_size(xs), 0);
     pfds_release(xs);
 
 }
 
-void test_gc_mapping_singleton(const pfds_objectvtable* dict) {
-    pfds_mapping* xs = dict->mapping->singleton(
+void test_gc_mapping_singleton(const pfds_objectvtable* vtable) {
+    pfds_mapping* xs = vtable->mapping->singleton(
             (pfds_object*) pfds_String_fromConstCstring("x"),
             (pfds_object*) pfds_Double_new(5));
     pfds_release(xs);
@@ -220,7 +265,7 @@ void disposeObjectPair(struct Gen_ObjectPair* self, pfds_object_pair* sample) {
     pfds_release(sample->value);
 }
 
-CCHECK_Gen* genObjectPair(const CCHECK_Gen* k, const CCHECK_Gen* v) {
+const CCHECK_Gen* genObjectPair(const CCHECK_Gen* k, const CCHECK_Gen* v) {
     static ffi_type* ffi_objectpair_fields[] = {
         &ffi_type_pointer,
         &ffi_type_pointer,
@@ -245,7 +290,7 @@ CCHECK_Gen* genObjectPair(const CCHECK_Gen* k, const CCHECK_Gen* v) {
     gen->key = k;
     gen->value = v;
 
-    return (CCHECK_Gen*) gen;
+    return (const CCHECK_Gen*) gen;
 }
 
 
@@ -262,7 +307,7 @@ void generateArrayMap(pfds_ArrayMap** sample, struct Gen_ObjectPair* self, int s
     }
 }
 
-CCHECK_Gen* genArrayMap(const CCHECK_Gen* k, const CCHECK_Gen* v) {
+const CCHECK_Gen* genArrayMap(const CCHECK_Gen* k, const CCHECK_Gen* v) {
 
     struct Gen_ObjectPair *gen = (struct Gen_ObjectPair*) malloc(sizeof(struct Gen_ObjectPair));
     gen->gen.userData = (void*) gen;
@@ -274,11 +319,11 @@ CCHECK_Gen* genArrayMap(const CCHECK_Gen* k, const CCHECK_Gen* v) {
     gen->key = k;
     gen->value = v;
 
-    return (CCHECK_Gen*) gen;
+    return (const CCHECK_Gen*) gen;
 }
 
-void test_gc_mapping_popMin(const pfds_objectvtable* dict) {
-    pfds_mapping* xs = dict->mapping->singleton(
+void test_gc_mapping_popMin(const pfds_objectvtable* vtable) {
+    pfds_mapping* xs = vtable->mapping->singleton(
             (pfds_object*) pfds_String_fromConstCstring("x"),
             (pfds_object*) pfds_Double_new(5));
     // xs
@@ -292,16 +337,16 @@ void test_gc_mapping_popMin(const pfds_objectvtable* dict) {
     pfds_release(xs);
 }
 
-void test_gc_mapping_popMinEmpty(const pfds_objectvtable* dict) {
+void test_gc_mapping_popMinEmpty(const pfds_objectvtable* vtable) {
     pfds_object_pair item;
-    pfds_mapping* xs = dict->mapping->empty();
+    pfds_mapping* xs = vtable->mapping->empty();
 
     CU_ASSERT_FALSE(pfds_mapping_popMin(&item, &xs, xs));
 }
 
-bool prop_mapping_debugfputs(const pfds_objectvtable* dict, pfds_ArrayMap* xsArray) {
+bool prop_mapping_debugfputs(const pfds_objectvtable* vtable, pfds_ArrayMap* xsArray) {
     pfds_retain(xsArray);
-    pfds_mapping* xs = pfds_mapping_fromArrayMap(dict, xsArray);
+    pfds_mapping* xs = pfds_mapping_fromArrayMap(vtable, xsArray);
 
     char* buf;
     size_t size = 0;
@@ -323,8 +368,8 @@ bool prop_mapping_debugfputs(const pfds_objectvtable* dict, pfds_ArrayMap* xsArr
     return result == 0;
 }
 
-void test_gc_mapping_toString(const pfds_objectvtable* dict) {
-    pfds_mapping* xs = dict->mapping->singleton(
+void test_gc_mapping_toString(const pfds_objectvtable* vtable) {
+    pfds_mapping* xs = vtable->mapping->singleton(
             (pfds_object*) pfds_String_fromConstCstring("x"),
             (pfds_object*) pfds_Double_new(5));
     pfds_String* xsStr = pfds_object_toString((pfds_object*) xs);
@@ -332,8 +377,8 @@ void test_gc_mapping_toString(const pfds_objectvtable* dict) {
     pfds_release(xsStr);
 }
 
-void test_gc_mapping_dfltToString(const pfds_objectvtable* dict) {
-    pfds_mapping* xs = dict->mapping->singleton(
+void test_gc_mapping_dfltToString(const pfds_objectvtable* vtable) {
+    pfds_mapping* xs = vtable->mapping->singleton(
             (pfds_object*) pfds_String_fromConstCstring("x"),
             (pfds_object*) pfds_Double_new(5));
 
@@ -347,11 +392,11 @@ void test_gc_mapping_dfltToString(const pfds_objectvtable* dict) {
     pfds_release(xs);
 }
 
-void test_gc_mapping_cmp(const pfds_objectvtable* dict) {
-    pfds_mapping* xs = dict->mapping->singleton(
+void test_gc_mapping_cmp(const pfds_objectvtable* vtable) {
+    pfds_mapping* xs = vtable->mapping->singleton(
             (pfds_object*) pfds_String_fromConstCstring("x"),
             (pfds_object*) pfds_Double_new(5));
-    pfds_mapping* zs = dict->mapping->singleton(
+    pfds_mapping* zs = vtable->mapping->singleton(
             (pfds_object*) pfds_String_fromConstCstring("x"),
             (pfds_object*) pfds_Double_new(6));
 
@@ -361,9 +406,9 @@ void test_gc_mapping_cmp(const pfds_objectvtable* dict) {
     pfds_release(zs);
 }
 
-bool prop_mapping_popMin(const pfds_objectvtable* dict, pfds_ArrayMap* xsArray) {
+bool prop_mapping_popMin(const pfds_objectvtable* vtable, pfds_ArrayMap* xsArray) {
     pfds_retain(xsArray);
-    pfds_mapping* xs = pfds_mapping_fromArrayMap(dict, xsArray);
+    pfds_mapping* xs = pfds_mapping_fromArrayMap(vtable, xsArray);
 
     pfds_object_pair currentItem;
     if(!pfds_mapping_popMin(&currentItem, &xs, xs)) {
@@ -387,9 +432,9 @@ bool prop_mapping_popMin(const pfds_objectvtable* dict, pfds_ArrayMap* xsArray) 
 
 }
 
-void test_gc_mapping_insertNew(const pfds_objectvtable* dict) {
+void test_gc_mapping_insertNew(const pfds_objectvtable* vtable) {
 
-    pfds_mapping* xs = dict->mapping->singleton(
+    pfds_mapping* xs = vtable->mapping->singleton(
             (pfds_object*) pfds_String_fromConstCstring("b"),
             (pfds_object*) pfds_Double_new(5));
 
@@ -400,9 +445,9 @@ void test_gc_mapping_insertNew(const pfds_objectvtable* dict) {
 
     pfds_release(xs);
 }
-void test_gc_mapping_insertReplace(const pfds_objectvtable* dict) {
+void test_gc_mapping_insertReplace(const pfds_objectvtable* vtable) {
 
-    pfds_mapping* xs = dict->mapping->singleton(
+    pfds_mapping* xs = vtable->mapping->singleton(
             (pfds_object*) pfds_String_fromConstCstring("x"),
             (pfds_object*) pfds_Double_new(5));
 
@@ -414,9 +459,9 @@ void test_gc_mapping_insertReplace(const pfds_objectvtable* dict) {
     pfds_release(xs);
 }
 
-void test_gc_mapping_insertPastEnd(const pfds_objectvtable* dict) {
+void test_gc_mapping_insertPastEnd(const pfds_objectvtable* vtable) {
 
-    pfds_mapping* xs = dict->mapping->singleton(
+    pfds_mapping* xs = vtable->mapping->singleton(
             (pfds_object*) pfds_String_fromConstCstring("a"),
             (pfds_object*) pfds_Double_new(5));
 
@@ -428,3 +473,144 @@ void test_gc_mapping_insertPastEnd(const pfds_objectvtable* dict) {
     pfds_release(xs);
 }
 
+bool prop_mapping_size(const pfds_objectvtable* vtable, pfds_ArrayMap* xsArray) {
+
+    pfds_retain(xsArray);
+    pfds_mapping* xs = pfds_mapping_fromArrayMap(vtable, xsArray);
+
+    size_t size1 = pfds_mapping_size(xs);
+    size_t size2 = 0;
+    pfds_object_pair item;
+    while(pfds_mapping_popMin(&item, &xs, xs)) {
+        size2++;
+        pfds_release(item.key);
+        pfds_release(item.value);
+    }
+
+    return size1 == size2;
+}
+
+pfds_ordering int2ordering(int x) {
+    return
+        x < 0 ? PFDS_LT :
+        x == 0 ? PFDS_EQ :
+        PFDS_GT;
+}
+
+bool prop_mapping_cmpSize(const pfds_objectvtable* vtable, pfds_ArrayMap* xsArray, pfds_ArrayMap* ysArray) {
+
+    pfds_retain(xsArray);
+    pfds_mapping* xs = pfds_mapping_fromArrayMap(vtable, xsArray);
+    pfds_retain(ysArray);
+    pfds_mapping* ys = pfds_mapping_fromArrayMap(vtable, ysArray);
+
+    int xSize = (int) pfds_mapping_size(xs);
+    int ySize = (int) pfds_mapping_size(ys);
+    pfds_ordering result = pfds_cmp(xs, ys);
+    pfds_ordering resultDflt = pfds_mapping_defaultCmp(xs, ys);
+    pfds_ordering resultSize = int2ordering(xSize - ySize);
+
+    pfds_release(xs);
+    pfds_release(ys);
+
+    if (resultSize == PFDS_EQ) {
+        // TODO ccheck neesds a prune option.
+        return result == resultDflt;
+    }
+    return resultSize == result && result == resultDflt;
+}
+
+bool prop_mapping_cmpKeys(const pfds_objectvtable* vtable, pfds_ArrayMap* xsArray,
+        pfds_object* k1, pfds_object* k2, pfds_object* val) {
+
+    pfds_ordering kOrder = pfds_cmp(k1, k2);
+    if (kOrder == PFDS_EQ) {
+        // todo: return PRUNE;
+        return true;
+    }
+
+    pfds_retain(xsArray);
+    pfds_mapping* xs = pfds_mapping_fromArrayMap(vtable, xsArray);
+    pfds_retain(k1); pfds_retain(k2); pfds_retain(val);
+    xs = pfds_mapping_insert(pfds_mapping_erase(xs, k2), k1, val);
+
+    pfds_retain(xsArray);
+    pfds_mapping* ys = pfds_mapping_fromArrayMap(vtable, xsArray);
+    pfds_retain(k1); pfds_retain(k2); pfds_retain(val);
+    ys = pfds_mapping_insert(pfds_mapping_erase(ys, k1), k2, val);
+
+    pfds_ordering mapOrder = pfds_cmp(xs, ys);
+    pfds_release(xs);
+    pfds_release(ys);
+
+    return mapOrder == kOrder;
+}
+
+bool prop_mapping_cmpValues(const pfds_objectvtable* vtable, pfds_ArrayMap* xsArray,
+        pfds_object* k1, pfds_object* k2, pfds_object* v1, pfds_object* v2) {
+
+    pfds_ordering kOrder = pfds_cmp(k1, k2);
+    pfds_ordering vOrder = pfds_cmp(v1, v2);
+    if (kOrder == PFDS_EQ || vOrder == PFDS_EQ) {
+        // todo: return PRUNE;
+        return true;
+    }
+
+    pfds_retain(xsArray);
+    pfds_mapping* xs = pfds_mapping_fromArrayMap(vtable, xsArray);
+    pfds_retain(k1); pfds_retain(k2); pfds_retain(v1); pfds_retain(v2);
+    xs = pfds_mapping_insert(pfds_mapping_insert(xs, k1, v1), k2, v2);
+
+    pfds_retain(xsArray);
+    pfds_mapping* ys = pfds_mapping_fromArrayMap(vtable, xsArray);
+    pfds_retain(k1); pfds_retain(k2); pfds_retain(v1); pfds_retain(v2);
+    ys = pfds_mapping_insert(pfds_mapping_insert(ys, k1, v2), k2, v1);
+
+    pfds_ordering mapOrder = pfds_cmp(xs, ys);
+    pfds_release(xs);
+    pfds_release(ys);
+
+    return mapOrder == (kOrder == PFDS_LT ? vOrder : -vOrder);
+}
+
+void test_gc_mapping_lookup(const pfds_objectvtable* vtable) {
+    pfds_object* k1 = (pfds_object*) pfds_String_fromConstCstring("a");
+    pfds_object* k2 = (pfds_object*) pfds_String_fromConstCstring("a");
+    pfds_mapping* xs = vtable->mapping->singleton(k1, (pfds_object*) pfds_Double_new(5));
+
+    CU_ASSERT(NULL != pfds_mapping_lookup(xs, k2));
+    pfds_release(xs);
+    pfds_release(k2);
+}
+
+void test_gc_mapping_lookupMiss(const pfds_objectvtable* vtable) {
+    pfds_object* k1 = (pfds_object*) pfds_String_fromConstCstring("a");
+    pfds_object* k2 = (pfds_object*) pfds_String_fromConstCstring("b");
+    pfds_mapping* xs = vtable->mapping->singleton(k1, (pfds_object*) pfds_Double_new(5));
+
+    CU_ASSERT_EQUAL(NULL, pfds_mapping_lookup(xs, k2));
+    pfds_release(xs);
+    pfds_release(k2);
+}
+
+bool prop_mapping_lookup(const pfds_objectvtable *vtable, pfds_ArrayMap* xsArray, pfds_object* k) {
+
+    pfds_retain(xsArray);
+    pfds_mapping* xs = pfds_mapping_fromArrayMap(vtable, xsArray);
+
+    pfds_object* valArray = pfds_mapping_lookup((pfds_mapping*) xsArray, k);
+    pfds_object* val = pfds_mapping_lookup(xs, k);
+
+    if (valArray == NULL) {
+        // TODO: ccheck histogram "miss"
+
+        pfds_release(xs);
+        return val == NULL;
+    }
+
+    // TODO: ccheck histogram "hit"
+    bool result = val != NULL && pfds_cmp(valArray, val) == PFDS_EQ;
+    pfds_release(xs);
+    return result;
+
+}

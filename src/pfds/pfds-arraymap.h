@@ -52,5 +52,12 @@ pfds_ArrayMap * pfds_ArrayMap_fromArray_ex(size_t size, pfds_object_pair items[]
  */
 pfds_mapping* pfds_mapping_fromArrayMap(const pfds_objectvtable *vtable, pfds_ArrayMap* arrayMap);
 
+/** retrieve an item from an ArrayMap by ordinal position
+ * \param self
+ * \param i
+ * \returns item at i'th position
+ * \invariant lend(return.{key,value}, self), borrow(self)
+ */
+pfds_object_pair pfds_ArrayMap_getItem(pfds_ArrayMap* self, size_t i);
 
 #endif

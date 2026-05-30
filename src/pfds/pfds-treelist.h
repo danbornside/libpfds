@@ -19,7 +19,16 @@
 
 #include "pfds-object.h"
 
+/** tree based implementation of pfds_sequence
+ *
+ * \class pfds_TreeList
+ * \extends pfds_object
+ * \implements pfds_sequence
+ * \implements pfds_catenable
+ *
+ */
 typedef struct pfds_TreeList pfds_TreeList;
+
 extern const pfds_objectvtable pfds_TreeList_vtable;
 
 pfds_TreeList* pfds_TreeList_fromArray(size_t n, pfds_object** xs);

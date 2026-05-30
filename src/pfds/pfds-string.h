@@ -21,6 +21,13 @@
 
 #include <stdbool.h>
 
+/** boxed array of char
+ *
+ * \class pfds_String
+ * \extends pfds_object
+ * \implements pfds_catenable
+ *
+ */
 typedef struct pfds_String pfds_String;
 
 extern const pfds_objectvtable pfds_String_vtable;

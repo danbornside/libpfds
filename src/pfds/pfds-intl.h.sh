@@ -37,8 +37,8 @@ fi
 
 # ATTENTION: The following warning will appear in the generated file.
 # ATTENTION: you are editing the correct file
-cat << "EOF"
-/* ATTENTION: this file was generated from ./pfds-intl.h.in
+cat << EOF
+/* ATTENTION: this file was generated from $0
  * ATTENTION: any changes you make here will be lost
  */
 
@@ -107,7 +107,7 @@ void pfds_object_retain(pfds_object* self$(pfds_gcdebugconfig ', char* fn, int l
 /** decrese reference count of self by 1.  object will be freed if refcount is zero
  * \\public \\memberof pfds_object
  *
- * \\param self $(pfds_gcdebugconfig '
+ * \\param self$(pfds_gcdebugconfig '
  * \param fn file name
  * \param ln line number')
  * \\invariant drop(self)
@@ -119,8 +119,9 @@ struct pfds_gcinfo {$(pfds_gcenabledconfig '
     size_t deaths;
     size_t retaincount;
     size_t releasecount;
-    ')
+')
 };
+
 struct pfds_gcinfo pfds_getgcinfo(void);
 
 #define pfds_retain_array(n, elts) { for (int retainElts##__LINE__ = 0; retainElts##__LINE__ < n ; ++retainElts##__LINE__) \

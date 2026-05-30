@@ -28,8 +28,19 @@
 #include "pfds-object.h"
 #include "pfds-sequence.h"
 
-/** a simple, generally suboptimal implementation of a sequential container
- * implemented as a simple array of pointers. */
+/** a simple, generally suboptimal implementation of a sequential container implemented as a simple array of pointers.
+ *
+ * This class is only intended for testing and should not be of use to end users of this library
+ *
+ * \class pfds_ArrayList
+ *
+ * \extends pfds_object
+ * \implements pfds_sequence
+ * \implements pfds_catenable
+ *
+ * \headerfile pfds/pfds-arraylist.h <pfds/pfds-arraylist.h>
+ *
+ */
 typedef struct pfds_ArrayList pfds_ArrayList;
 
 extern const pfds_objectvtable pfds_ArrayList_vtable;

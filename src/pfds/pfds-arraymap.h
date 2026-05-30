@@ -16,6 +16,7 @@
 
 /** inefficient implementation of libpfds interfaces based on c arrays.
  *
+ *
  * This types and methods in this module are mostly intended for illustration
  * and testing; most users will not need to use this header.
  */
@@ -26,6 +27,17 @@
 #include "pfds-mapping.h"
 #include "pfds-object.h"
 
+/** inefficient array based implementation of pfds_sequence
+ *
+ * This class is only intended for testing and should not be of use to end users of this library
+ *
+ * \class pfds_ArrayMap
+ * \extends pfds_object
+ * \implements pfds_mapping
+ *
+ * \headerfile pfds/pfds-arraymap.h <pfds/pfds-arraymap.h>
+ *
+ */
 typedef struct pfds_ArrayMap pfds_ArrayMap;
 extern pfds_objectvtable pfds_ArrayMap_vtable;
 
@@ -46,8 +58,8 @@ pfds_ArrayMap * pfds_ArrayMap_fromArray_ex(size_t size, pfds_object_pair items[]
 
 /** construct a new mapping from an ArrayMap.
  *
- * \param dict
- * \param items
+ * \param vtable
+ * \param arrayMap
  * \invariant give(return) take(lst)
  */
 pfds_mapping* pfds_mapping_fromArrayMap(const pfds_objectvtable *vtable, pfds_ArrayMap* arrayMap);

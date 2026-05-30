@@ -19,7 +19,18 @@
 
 #include "pfds-object.h"
 
+/** boxed double
+ *
+ * \class pfds_Double
+ * \extends pfds_object
+ */
 typedef struct pfds_Double pfds_Double;
+
+/** boxed uint64_t
+ *
+ * \class pfds_UInt64
+ * \extends pfds_object
+ */
 typedef struct pfds_UInt64 pfds_UInt64;
 
 extern const pfds_objectvtable pfds_UInt64_vtable;

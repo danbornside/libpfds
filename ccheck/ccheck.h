@@ -232,7 +232,7 @@ extern int CCHECK_Context_iteration(CCHECK_Context *ctx);
  *
  * @param pSuite      Test suite to which to add new test (non-NULL).
  * @param strName     Name for the new test case (non-NULL).
- * @param source for test seeds.  may be null.
+ * @param seedGen for test seeds.  may be null.
  * @param iterations number of attempts to find a counterexample
  * @param propFn function which tests properties using a CCHECK_Context
  * @param userData userData passed to propFn
@@ -256,7 +256,7 @@ extern void CCHECK_assert_prop_impl(CCHECK_Context* ctx, int lineNo, char* fileN
 
 /** implementation of CHECK_test_prop.
  *
- * @param source for test seeds.  may be null.
+ * @param seedGen for test seeds.  may be null.
  * @param iterations number of attempts to find a counterexample
  * @param propFn function which tests properties using a CCHECK_Context
  * @param userData userData passed to propFn

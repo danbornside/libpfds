@@ -22,6 +22,14 @@
 #include "pfds-object.h"
 #include "pfds-functions.h"
 
+/** A collection of unordered objects accessable by ordinal position.
+ *
+ * \interface pfds_sequence
+ * \extends pfds_catenable
+ * \extends pfds_object
+ * \headerfile pfds/pfds-sequence.h <pfds/pfds-sequence.h>
+ *
+ */
 typedef struct pfds_sequence {
     pfds_object object;
 }
@@ -33,6 +41,8 @@ struct pfds_sequencevtable {
 
     /** construct a new sequence of the selected type from an array of the given objects.
      *
+     * \public \memberof pfds_sequence
+     *
      * \param n
      * \param xs
      * \invariant give(return) take(xs[0..n])
@@ -40,6 +50,8 @@ struct pfds_sequencevtable {
     pfds_sequence* (*fromArray)(size_t, pfds_object**);
 
     /** construct a new sequence of one element
+     *
+     * \public \memberof pfds_sequence
      *
      * \param x
      * \invariant give(return) take(x)
@@ -57,6 +69,8 @@ struct pfds_sequencevtable {
 
     /** return the number of elementst in a sequence
      *
+     * \public \memberof pfds_sequence
+     *
      * \param self
      * \return number of elements in self
      * \invariant borrow(self)
@@ -64,6 +78,8 @@ struct pfds_sequencevtable {
     size_t (*size)(pfds_sequence*);
 
     /** split sequence into first element and remaing sequence. outputs NULL and returns false on empty sequence
+     *
+     * \public \memberof pfds_sequence
      *
      * \param head[out] first element of a sequence
      * \param tail[out] remaining elements of a sequence
@@ -73,7 +89,10 @@ struct pfds_sequencevtable {
      *      | when(return == false) borrow(self)
      */
     bool (*popFront)(pfds_object**, pfds_sequence**, pfds_sequence*);
+
     /** split sequence into intial sequence and last element.  outputs NULL and returns false on empty sequence
+     *
+     * \public \memberof pfds_sequence
      *
      * \param init[out] remaining elements of a sequence
      * \param last[out] first element of a sequence
@@ -85,6 +104,8 @@ struct pfds_sequencevtable {
     bool (*popBack)(pfds_sequence**, pfds_object**, pfds_sequence*);
 
     /** split sequence into intial sequence, selected element, and remaining sequence.  outputs NULL and returns false if sequence does not contain selected element
+     *
+     * \public \memberof pfds_sequence
      *
      * \param init[out] first n-1 elements
      * \param link[out] nth element
@@ -98,6 +119,8 @@ struct pfds_sequencevtable {
 
     /** add an element to the front of a sequence.
      *
+     * \public \memberof pfds_sequence
+     *
      * \param head
      * \param tail
      * \invariant give(return) take(head) take(tail)
@@ -106,6 +129,8 @@ struct pfds_sequencevtable {
 
     /** add an element to the back of a sequence.
      *
+     * \public \memberof pfds_sequence
+     *
      * \param last
      * \param init
      * \invariant give(return) take(init) take(last)
@@ -113,6 +138,8 @@ struct pfds_sequencevtable {
     pfds_sequence* (*pushBack)(pfds_sequence* init, pfds_object* last);
 
     /** return the nth element or NULL if the container does not contain enough elements
+     *
+     * \public \memberof pfds_sequence
      *
      * \param self
      * \param n
@@ -123,6 +150,8 @@ struct pfds_sequencevtable {
     pfds_object* (*get)(pfds_sequence* self, size_t n);
 
     /** add an element x in position n.
+     *
+     * \public \memberof pfds_sequence
      *
      * \param self
      * \param n
@@ -135,6 +164,8 @@ struct pfds_sequencevtable {
 
     /** add an element x immediately after the element in position n.
      *
+     * \public \memberof pfds_sequence
+     *
      * \param self
      * \param n
      * \param x
@@ -145,6 +176,8 @@ struct pfds_sequencevtable {
     pfds_sequence* (*insertAfter)(pfds_sequence* self, size_t n, pfds_object* x);
 
     /** replace the element in position n by x.
+     *
+     * \public \memberof pfds_sequence
      *
      * \param self
      * \param n
@@ -157,6 +190,8 @@ struct pfds_sequencevtable {
 
     /** remove the element at position n.
      *
+     * \public \memberof pfds_sequence
+     *
      * \param self
      * \param n
      * \returns a copy of the sequence with the element added at the requested location.
@@ -167,6 +202,8 @@ struct pfds_sequencevtable {
 
     /** return the first element or NULL if the container is empty
      *
+     * \public \memberof pfds_sequence
+     *
      * \param self
      * \returns the first element of self if it exists, NULL otherwise
      * \invariant when(return != NULL) lend(return, self)
@@ -175,6 +212,8 @@ struct pfds_sequencevtable {
     pfds_object* (*front)(pfds_sequence* self);
 
     /** return the last element or NULL if the container is empty
+     *
+     * \public \memberof pfds_sequence
      *
      * \param self
      * \returns the last element of self if it exists, NULL otherwise
@@ -185,6 +224,8 @@ struct pfds_sequencevtable {
 
     /** return a duplicate of the sequence with elements in reverse order
      *
+     * \public \memberof pfds_sequence
+     *
      * \param self
      * \invariant give(return) take(self)
      */
@@ -192,6 +233,8 @@ struct pfds_sequencevtable {
 
     /** collect all elements of a sequence into a right associative running
      * total with user provided function.
+     *
+     * \public \memberof pfds_sequence
      *
      * \param fn
      * \param ud
@@ -205,6 +248,8 @@ struct pfds_sequencevtable {
     /** collect all elements of a sequence into a left associative running
      * total with user provided function.
      *
+     * \public \memberof pfds_sequence
+     *
      * \param fn
      * \param ud
      * \param initial
@@ -216,6 +261,7 @@ struct pfds_sequencevtable {
 };
 
 /** convenient default implementation of isEmpty that uses size.
+ * \protected \memberof pfds_sequence
  *
  * \param self
  * \return true if self is the empty sequence, false otherwise.
@@ -225,6 +271,7 @@ struct pfds_sequencevtable {
 bool pfds_sequence_defaultIsEmpty(pfds_sequence* self);
 
 /** convenient default implementation of popFront that uses split
+ * \protected \memberof pfds_sequence
  *
  * \param[out] head first element of a sequence
  * \param[out] tail remaining elements of a sequence
@@ -236,6 +283,7 @@ bool pfds_sequence_defaultIsEmpty(pfds_sequence* self);
 bool pfds_sequence_defaultPopFront(pfds_object** head, pfds_sequence** tail, pfds_sequence* self);
 
 /** convenient default implementation of popBack that uses split
+ * \protected \memberof pfds_sequence
  *
  * \param[out] init remaining elements of a sequence
  * \param[out] last first element of a sequence
@@ -247,6 +295,7 @@ bool pfds_sequence_defaultPopFront(pfds_object** head, pfds_sequence** tail, pfd
 bool pfds_sequence_defaultPopBack(pfds_sequence** init, pfds_object** last, pfds_sequence* self);
 
 /** convenient default implementation of front that uses get
+ * \protected \memberof pfds_sequence
  *
  * \param self
  * \returns the first element of self if it exists, NULL otherwise
@@ -256,6 +305,7 @@ bool pfds_sequence_defaultPopBack(pfds_sequence** init, pfds_object** last, pfds
 pfds_object* pfds_sequence_defaultFront(pfds_sequence* self);
 
 /** convenient default implementation of back that uses size and get
+ * \protected \memberof pfds_sequence
  *
  * \param self
  * \returns the last element of self if it exists, NULL otherwise
@@ -287,6 +337,7 @@ pfds_ordering pfds_sequence_defaultCmp (pfds_sequence* l, pfds_sequence* r);
 
 
 /** convenience default implementation of reduceLeft based on popFront
+ * \protected \memberof pfds_sequence
  *
  * \param fn
  * \param ud
@@ -298,6 +349,7 @@ pfds_ordering pfds_sequence_defaultCmp (pfds_sequence* l, pfds_sequence* r);
 pfds_object* pfds_sequence_defaultReduceLeft(binop fn, void* ud, pfds_object* initial, pfds_sequence* self);
 
 /** convenience default implementation of reduceRight based on popBack
+ * \protected \memberof pfds_sequence
  *
  * \param fn
  * \param ud
@@ -309,6 +361,7 @@ pfds_object* pfds_sequence_defaultReduceLeft(binop fn, void* ud, pfds_object* in
 pfds_object* pfds_sequence_defaultReduceRight(binop fn, void* ud, pfds_sequence* self, pfds_object* initial);
 
 /** convenience implementation of everse based on pushFront, popFront and empty
+ * \protected \memberof pfds_sequence
  *
  * \param self
  * \invariant give(return) take(self)
@@ -316,6 +369,7 @@ pfds_object* pfds_sequence_defaultReduceRight(binop fn, void* ud, pfds_sequence*
 pfds_sequence* pfds_sequence_defaultReverse(pfds_sequence* self);
 
 /** test if a sequence has elements
+ * \public \memberof pfds_sequence
  *
  * \param self
  * \return true if self is the empty sequence, false otherwise.
@@ -324,9 +378,12 @@ pfds_sequence* pfds_sequence_defaultReverse(pfds_sequence* self);
  */
 bool pfds_sequence_isEmpty (pfds_sequence* self);
 
-/** \see pfds_sequence::pushFront
+/** add an element to the front of a sequence.
+ *
+ * \see pfds_sequence::pushFront
  */
 pfds_sequence* pfds_sequence_pushFront (pfds_object* elem,pfds_sequence* self);
+
 bool pfds_sequence_popFront (pfds_object** head, pfds_sequence** tail, pfds_sequence* self);
 pfds_object* pfds_sequence_front(pfds_sequence* self);
 pfds_object* pfds_sequence_back(pfds_sequence* self);

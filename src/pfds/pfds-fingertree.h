@@ -21,7 +21,21 @@
 
 #include <stdbool.h>
 
+
+/** Generic functional container.
+ *
+ * can be used as the underlying base type for a variety of container types,
+ * with reasonable asymptotic performance on a variety of operations with
+ * reasonable constants compared to more specialised implementations.
+ *
+ * \class pfds_FingerTree
+ * \extends pfds_object
+ *
+ */
 typedef struct pfds_FingerTree pfds_FingerTree;
+
+/** function to extract a catenable summary from an object.
+ */
 typedef pfds_object* (*pfds_measure)(pfds_object*);
 
 pfds_FingerTree* pfds_FingerTree_pushBack(

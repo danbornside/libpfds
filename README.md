@@ -1,4 +1,6 @@
-## libpfds C Library implementation of Persistent Functional Data Structures
+libpfds C Library implementation of Persistent Functional Data Structures
+=========================================================================
+
 
 This library is a plain C implementation of persistent data structures.
 
@@ -18,12 +20,30 @@ state for educational purposes only.
 > You should have received a copy of the GNU General Public License along with
 > libpfds. If not, see <https://www.gnu.org/licenses/>.
 
+Installation
+------------
 
-### implementation notes
+libpfds is developed using the nix package manager.  If you are also using nix, a `package.nix` is provided that can be used to include libpfds in your own projects, or it can built in with:
 
-types here are implemented using a simple reference counting garbage collection
-mechanism.  many functions that return modified values will "claim ownership"
-of their arguments, either using them directly to construct the new value, or
-decreasing their reference count if that isn't helpful.  To avoid freeing
-function arguments too early, users of this library will need to increment the
-ref counts
+```bash
+nix-build
+```
+
+Also for nix users interested in contributing to libpfds, a `shell.nix` is provided so you can run the following within the libpfds source directory:
+
+```bash
+nix-shell
+
+./configure [OPTIONS]
+make
+```
+
+On other platforms, libpfds can be built with GNU make and a recent C compiler:
+
+```bash
+./configure [OPTIONS]
+make
+make install
+```
+
+Documentation is built from sources with doxygen.

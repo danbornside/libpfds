@@ -23,6 +23,14 @@
 #ifndef PFDS_LINKEDLIST_HEADER_INCLUDED
 #define PFDS_LINKEDLIST_HEADER_INCLUDED
 
+/** minimal functional linked list implementation of sequences.
+ *
+ * \class pfds_LinkedList
+ * \extends pfds_object
+ * \implements pfds_sequence
+ * \implements pfds_catenable
+ *
+ */
 typedef struct pfds_LinkedList pfds_LinkedList;
 
 extern const pfds_objectvtable pfds_LinkedList_vtable;

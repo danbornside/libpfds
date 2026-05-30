@@ -14,19 +14,17 @@
  * libpfds. If not, see <https://www.gnu.org/licenses/>.
  */
 
-/** @mainpage libpfds: Persistent Functional Data Structures in C
+/** \mainpage libpfds: Persistent Functional Data Structures in C
  *
- * the types in this library follow a particular approach to reference counting
- * garbage collection. in particular, any function that is defined to return
- * the same type as its arguments, will take ownership of those arguments,
- * possibly causing them to be garbage collected earlier than expected.  to
- * prevent this from happening, call pfds_retain on any intermediate values you
- * need to keep.
+ * \tableofcontents
+ *
+ * \section Building
+ *
+ * [Readme](@ref README.md)
  *
  * \section Garbage Collection
  *
  * this library makes use of a simple reference counting garbage collection system.
- *
  * most functions in this library will adjust reference counts in a sensible
  * way, taking ownership of arguments when constructing new values out of them,
  * or not if examining them.  the exact details are noted in each function's
@@ -41,19 +39,51 @@
  *      themselves to keep it valid after the function returns.
  * - `give(x)` produce a possibly new value referenced by x.
  *
+ * ----
+ *
+ * - @ref pfds_object
+ * - @ref pfds_object::pfds_object_retain
+ * - @ref pfds_object::pfds_object_release
+ *
+ * \section Interfaces
+ *
+ * - @ref pfds_catenablevtable
+ * - @ref pfds_sequence
+ * - @ref pfds_mapping
+ *
+ * \section Containers
+ *
+ * - @ref pfds_TreeList
+ * - @ref pfds_TreeMap
+ *
+ * - @ref pfds_ArrayList
+ * - @ref pfds_LinkedList
+ * - @ref pfds_ArrayMap
+ *
+ * \section Misc
+ *
+ * - @ref pfds_String
+ * - @ref pfds_Double
+ * - @ref pfds_UInt64
+ *
  */
+
 #ifndef PFDS_HEADER_INCLUDED
 #define PFDS_HEADER_INCLUDED
 
-#include "pfds/pfds-mapping.h"
-#include "pfds/pfds-catenable.h"
-#include "pfds/pfds-functions.h"
-#include "pfds/pfds-intl.h"
-#include "pfds/pfds-num.h"
+
 #include "pfds/pfds-object.h"
+#include "pfds/pfds-intl.h"
+
+#include "pfds/pfds-catenable.h"
 #include "pfds/pfds-sequence.h"
-#include "pfds/pfds-string.h"
+#include "pfds/pfds-mapping.h"
+
 #include "pfds/pfds-treelist.h"
 #include "pfds/pfds-treemap.h"
+#include "pfds/pfds-functions.h"
+#include "pfds/pfds-num.h"
+#include "pfds/pfds-string.h"
+
 
 #endif

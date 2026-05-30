@@ -36,6 +36,8 @@ typedef enum pfds_ordering {
 
 /** base "class" for most types in this library.
  *
+ * \headerfile pfds/pfds-object.h <pfds/pfds-object.h>
+ *
  * fixed header for all values that are managed by the garbage collector.
  * this must always be the first field in any structure that uses it.
  *
@@ -57,6 +59,7 @@ struct pfds_object {
  */
 struct pfds_objectvtable {
     const char* typename;
+
     /** finalizer for object.
      * \private \memberof pfds_object
      *
@@ -70,7 +73,7 @@ struct pfds_objectvtable {
     const void (*destroy)(pfds_object*);
 
     /** convenience function to display an object
-     * \private \memberof pfds_object
+     * \public \memberof pfds_object
      *
      * \param stream File pointer open for writing.
      * \param self

@@ -22,7 +22,14 @@
 
 #include <stdbool.h>
 
+/** tree based implementation of pfds_mapping
+ *
+ * \class pfds_TreeMap
+ * \extends pfds_object
+ * \implements pfds_mapping
+ */
 typedef struct pfds_TreeMap pfds_TreeMap;
+
 extern const pfds_objectvtable pfds_TreeMap_vtable;
 
 pfds_TreeMap* pfds_TreeMap_fromArray(size_t n, pfds_object_pair items[]);

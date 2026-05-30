@@ -160,6 +160,7 @@ struct testModule getTestMappingModule () {
         const pfds_objectvtable* vtable;
     } mappingInstances[] = {
         { &pfds_ArrayMap_vtable },
+        { &pfds_TreeMap_vtable },
         { 0 }
     };
 

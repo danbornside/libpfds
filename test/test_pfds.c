@@ -1037,6 +1037,7 @@ int main(int argc, char** argv)
     CU_add_test_with(validatorSuite, "vtable/ArrayList", (CU_TestFunc1) test_vtable, (void*) &pfds_ArrayList_vtable);
     CU_add_test_with(validatorSuite, "vtable/TreeList", (CU_TestFunc1) test_vtable, (void*) &pfds_TreeList_vtable);
     CU_add_test_with(validatorSuite, "vtable/ArrayMap", (CU_TestFunc1) test_vtable, (void*) &pfds_ArrayMap_vtable);
+    CU_add_test_with(validatorSuite, "vtable/TreeMap", (CU_TestFunc1) test_vtable, (void*) &pfds_TreeList_vtable);
 
 
     CU_pSuite gcSuite = CU_add_suite("gc", 0, 0);

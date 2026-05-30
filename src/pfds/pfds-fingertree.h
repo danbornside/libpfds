@@ -25,12 +25,12 @@ typedef struct pfds_FingerTree pfds_FingerTree;
 typedef pfds_object* (*pfds_measure)(pfds_object*);
 
 pfds_FingerTree* pfds_FingerTree_pushBack(
-        pfds_catenablevtable* cat, pfds_measure mm,
+        const pfds_catenablevtable* cat, pfds_measure mm,
         pfds_FingerTree* init,
         pfds_object* last);
 
 pfds_FingerTree* pfds_FingerTree_pushFront(
-        pfds_catenablevtable* cat, pfds_measure mm,
+        const pfds_catenablevtable* cat, pfds_measure mm,
         pfds_object* head,
         pfds_FingerTree *tail);
 
@@ -47,7 +47,7 @@ pfds_FingerTree* pfds_FingerTree_pushFront(
  *
  */
 pfds_FingerTree* pfds_FingerTree_app3(
-        pfds_catenablevtable* cat, pfds_measure mm,
+        const pfds_catenablevtable* cat, pfds_measure mm,
         pfds_FingerTree* xs,
         size_t n, pfds_object** ts,
         pfds_FingerTree* ys);
@@ -67,7 +67,7 @@ pfds_FingerTree* pfds_FingerTree_singleton (pfds_object* head);
 
 
 pfds_FingerTree* pfds_FingerTree_pushBackArray(
-        pfds_catenablevtable* cat, pfds_measure mm,
+        const pfds_catenablevtable* cat, pfds_measure mm,
         pfds_FingerTree* init,
         size_t n, pfds_object* lasts[]);
 
@@ -85,12 +85,17 @@ bool pfds_FingerTree_split(
         pfds_FingerTree** init,
         pfds_object** pivot,
         pfds_FingerTree** tail,
-        pfds_catenablevtable* cat, pfds_measure mm,
+        const pfds_catenablevtable* cat, pfds_measure mm,
         bool (*p)(void*, pfds_object*), void* ud,
         pfds_FingerTree* self);
 
-pfds_object* pfds_FingerTree_measure(pfds_catenablevtable* cat, pfds_measure mm, pfds_FingerTree* self);
+pfds_object* pfds_FingerTree_measure(const pfds_catenablevtable* cat, pfds_measure mm, pfds_FingerTree* self);
 
 int pfds_FingerTree_debugfputs(FILE* stream, pfds_FingerTree* self, size_t depth);
+
+bool pfds_FingerTree_popFront(
+        pfds_object** head, pfds_FingerTree** tail,
+        const pfds_catenablevtable* cat, pfds_measure mm,
+        pfds_FingerTree* self);
 
 #endif

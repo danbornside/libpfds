@@ -54,5 +54,6 @@
 #include "pfds/pfds-sequence.h"
 #include "pfds/pfds-string.h"
 #include "pfds/pfds-treelist.h"
+#include "pfds/pfds-treemap.h"
 
 #endif

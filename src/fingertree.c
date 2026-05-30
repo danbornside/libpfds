@@ -81,7 +81,7 @@ struct pfds_FingerTree /* a */ {
 
 
 struct WrappedMeasure {
-    pfds_catenablevtable* cat;
+    const pfds_catenablevtable* cat;
     pfds_measure mm;
 };
 
@@ -96,7 +96,7 @@ Digit* Digit_new(enum DigitTag sz, pfds_object* elements[]);
 Digit* Digit_vnew(enum DigitTag sz, ...);
 
 pfds_FingerTree* /* v a */ FingerTree_deep(
-        pfds_catenablevtable* cat, pfds_measure mm,
+        const pfds_catenablevtable* cat, pfds_measure mm,
         Digit* /* a */ pr,
         pfds_FingerTree* /* v (Node v a) */ m,
         Digit* /* a */ sf);
@@ -239,7 +239,7 @@ Digit* Digit_fromNode(Node* node) {
     }
 }
 
-pfds_object* Digit_measure(pfds_catenablevtable* cat, pfds_measure mm, Digit* self) {
+pfds_object* Digit_measure(const pfds_catenablevtable* cat, pfds_measure mm, Digit* self) {
     pfds_object* x = mm(self->elements[0]);
     for(size_t i = 1; i < self->tag; i++) {
         x = cat->mappend(x, mm(self->elements[i]));
@@ -265,7 +265,7 @@ const pfds_objectvtable Node_vtable = {
 };
 
 
-Node* Node_new2(pfds_catenablevtable* cat, pfds_measure mm, pfds_object* x, pfds_object* y) {
+Node* Node_new2(const pfds_catenablevtable* cat, pfds_measure mm, pfds_object* x, pfds_object* y) {
     Node* self = (Node*) pfds_object_new(sizeof(Node) + 2 * sizeof(pfds_object*), &Node_vtable);
     self->tag = NODE2;
     self->elements[0] = x;
@@ -274,7 +274,7 @@ Node* Node_new2(pfds_catenablevtable* cat, pfds_measure mm, pfds_object* x, pfds
     return self;
 }
 
-Node* Node_new3(pfds_catenablevtable* cat, pfds_measure mm, pfds_object* x, pfds_object* y, pfds_object* z) {
+Node* Node_new3(const pfds_catenablevtable* cat, pfds_measure mm, pfds_object* x, pfds_object* y, pfds_object* z) {
     Node* self = (Node*) pfds_object_new(sizeof(Node) + 3 * sizeof(pfds_object*), &Node_vtable);
     self->tag = NODE3;
     self->elements[0] = x;
@@ -290,7 +290,7 @@ pfds_object* Node_measure(pfds_object* self_obj) {
     return self->measure;
 }
 
-pfds_object* measureTreeOfNodes(pfds_catenablevtable* cat, pfds_FingerTree* self) {
+pfds_object* measureTreeOfNodes(const pfds_catenablevtable* cat, pfds_FingerTree* self) {
     switch(self->tag) {
         case FINGERTREE_EMPTY:
             return cat->mempty();
@@ -311,7 +311,7 @@ pfds_object* measureTreeOfNodes(pfds_catenablevtable* cat, pfds_FingerTree* self
  * \returns true if the digit was full and a new node was also created.
  *
  */
-bool Digit_pushBack(Node** ys, Digit** zs, pfds_catenablevtable* cat, pfds_measure mm, Digit* xs, pfds_object* y) {
+bool Digit_pushBack(Node** ys, Digit** zs, const pfds_catenablevtable* cat, pfds_measure mm, Digit* xs, pfds_object* y) {
     pfds_retain_array(xs->tag, xs->elements);
     switch (xs->tag) {
         case DIGIT1:
@@ -336,7 +336,7 @@ bool Digit_pushBack(Node** ys, Digit** zs, pfds_catenablevtable* cat, pfds_measu
     }
 }
 
-bool Digit_pushFront(Digit** zs, Node** ws, pfds_catenablevtable* cat, pfds_measure mm, pfds_object* x, Digit* ys) {
+bool Digit_pushFront(Digit** zs, Node** ws, const pfds_catenablevtable* cat, pfds_measure mm, pfds_object* x, Digit* ys) {
     pfds_retain_array(ys->tag, ys->elements);
     switch (ys->tag) {
         case DIGIT1:
@@ -383,7 +383,7 @@ pfds_objectvtable FingerTree_vtable = {
 };
 
 pfds_FingerTree* pfds_FingerTree_pushFront(
-        pfds_catenablevtable* cat, pfds_measure mm,
+        const pfds_catenablevtable* cat, pfds_measure mm,
         pfds_object* head,
         pfds_FingerTree *tail) {
     switch (tail->tag) {
@@ -428,7 +428,7 @@ pfds_FingerTree* pfds_FingerTree_pushFront(
 }
 
 pfds_FingerTree* FingerTree_pushFrontArray(
-        pfds_catenablevtable* cat, pfds_measure mm,
+        const pfds_catenablevtable* cat, pfds_measure mm,
         size_t n, pfds_object* heads[],
         pfds_FingerTree *tail) {
     for (size_t i = 0; i < n; i++) {
@@ -439,7 +439,7 @@ pfds_FingerTree* FingerTree_pushFrontArray(
 
 
 pfds_FingerTree* pfds_FingerTree_pushBack(
-        pfds_catenablevtable* cat, pfds_measure mm,
+        const pfds_catenablevtable* cat, pfds_measure mm,
         pfds_FingerTree* init,
         pfds_object* last) {
     // [init, last]
@@ -486,7 +486,7 @@ pfds_FingerTree* pfds_FingerTree_pushBack(
 }
 
 pfds_FingerTree* pfds_FingerTree_pushBackArray(
-        pfds_catenablevtable* cat, pfds_measure mm,
+        const pfds_catenablevtable* cat, pfds_measure mm,
         pfds_FingerTree* init,
         size_t n, pfds_object* lasts[]) {
     for(size_t i = 0; i < n; i++) {
@@ -501,7 +501,7 @@ pfds_FingerTree* WrappedFingerTree_pushFront(struct WrappedMeasure *mm, pfds_obj
 
 
 pfds_FingerTree* FingerTree_pushFrontRange(
-        pfds_catenablevtable* cat, pfds_measure mm,
+        const pfds_catenablevtable* cat, pfds_measure mm,
         pfds_sequence* xs,
         pfds_FingerTree* y) {
     struct WrappedMeasure wrappedMm = {cat, mm};
@@ -516,7 +516,7 @@ pfds_FingerTree* WrappedFingerTree_pushBack(struct WrappedMeasure *mm, pfds_Fing
 }
 
 pfds_FingerTree* FingerTree_pushBackRange(
-        pfds_catenablevtable* cat, pfds_measure mm,
+        const pfds_catenablevtable* cat, pfds_measure mm,
         pfds_FingerTree* x,
         pfds_sequence* ys) {
     struct WrappedMeasure wrappedMm = {cat, mm};
@@ -541,7 +541,7 @@ pfds_FingerTree* pfds_FingerTree_singleton (pfds_object* head) {
 }
 
 pfds_FingerTree* FingerTree_fromArray (
-        pfds_catenablevtable* cat, pfds_measure mm,
+        const pfds_catenablevtable* cat, pfds_measure mm,
         size_t n, pfds_object* heads[]) {
         return FingerTree_pushFrontArray(cat, mm, n, heads, pfds_FingerTree_empty());
 }
@@ -559,7 +559,7 @@ pfds_FingerTree* FingerTree_fromArray (
  * ```
  */
 pfds_FingerTree* /* v a */ FingerTree_deep(
-        pfds_catenablevtable* cat, pfds_measure mm,
+        const pfds_catenablevtable* cat, pfds_measure mm,
         Digit* /* a */ pr,
         pfds_FingerTree* /* v (Node v a) */ m,
         Digit* /* a */ sf) {
@@ -579,7 +579,7 @@ pfds_FingerTree* /* v a */ FingerTree_deep(
     return self;
 }
 
-pfds_object* pfds_FingerTree_measure(pfds_catenablevtable* cat, pfds_measure mm, pfds_FingerTree* self) {
+pfds_object* pfds_FingerTree_measure(const pfds_catenablevtable* cat, pfds_measure mm, pfds_FingerTree* self) {
     switch (self->tag) {
         case FINGERTREE_EMPTY:
             return cat->mempty();
@@ -594,7 +594,7 @@ pfds_object* pfds_FingerTree_measure(pfds_catenablevtable* cat, pfds_measure mm,
 }
 
 // read the measure from a non-root FingerTree; who's elements are nodes.
-pfds_object* FingerTree_Node_measure(pfds_catenablevtable* cat, pfds_FingerTree* self) {
+pfds_object* FingerTree_Node_measure(const pfds_catenablevtable* cat, pfds_FingerTree* self) {
     switch (self->tag) {
         case FINGERTREE_EMPTY:
             return cat->mempty();
@@ -611,31 +611,26 @@ pfds_object* FingerTree_Node_measure(pfds_catenablevtable* cat, pfds_FingerTree*
 }
 
 
-bool FingerTree_popFront(
-        pfds_object** head, pfds_FingerTree** tail,
-        pfds_catenablevtable* cat, pfds_measure mm,
-        pfds_FingerTree* self);
-
 pfds_FingerTree* FingerTree_deepL(
-        pfds_catenablevtable* cat, pfds_measure mm,
+        const pfds_catenablevtable* cat, pfds_measure mm,
         Digit* /* Maybe (Digit a) */ prefix,
         pfds_FingerTree* /* Node v a */ self,
         Digit* /* a */ suffix);
 
 bool FingerTree_popBack(
         pfds_FingerTree** init, pfds_object** last,
-        pfds_catenablevtable* cat, pfds_measure mm,
+        const pfds_catenablevtable* cat, pfds_measure mm,
         pfds_FingerTree* self);
 
 pfds_FingerTree* FingerTree_deepR(
-        pfds_catenablevtable* cat, pfds_measure mm,
+        const pfds_catenablevtable* cat, pfds_measure mm,
         Digit* /* a */ prefix,
         pfds_FingerTree* /* Node v a */ self,
         Digit* /* Maybe (Digit a) */ suffix);
 
-bool FingerTree_popFront(
+bool pfds_FingerTree_popFront(
         pfds_object** head, pfds_FingerTree** tail,
-        pfds_catenablevtable* cat, pfds_measure mm,
+        const pfds_catenablevtable* cat, pfds_measure mm,
         pfds_FingerTree* self) {
     switch (self->tag) {
         case FINGERTREE_EMPTY:
@@ -673,7 +668,7 @@ bool FingerTree_popFront(
 
 
 pfds_FingerTree* FingerTree_deepL(
-        pfds_catenablevtable* cat, pfds_measure mm,
+        const pfds_catenablevtable* cat, pfds_measure mm,
         Digit* /* Maybe (Digit a) */ prefix,
         pfds_FingerTree* /* Node v a */ m,
         Digit* /* a */ suffix) {
@@ -683,7 +678,7 @@ pfds_FingerTree* FingerTree_deepL(
         pfds_object* a;
         pfds_FingerTree* mPrime;
         // [m, m, suffix] (assumption)
-        if(FingerTree_popFront(&a, &mPrime, cat, Node_measure, m)) {
+        if(pfds_FingerTree_popFront(&a, &mPrime, cat, Node_measure, m)) {
             // [a, mPrime, suffix]
             return FingerTree_deep(cat, mm, Digit_fromNode((Node*) a), mPrime, suffix);
             // [return]
@@ -699,7 +694,7 @@ pfds_FingerTree* FingerTree_deepL(
 }
 
 pfds_FingerTree* FingerTree_fromDigit(
-        pfds_catenablevtable* cat, pfds_measure mm,
+        const pfds_catenablevtable* cat, pfds_measure mm,
         Digit* self) {
     if (self == NULL) {
         // paper returns lists from splitDigit.  In C i'll simply tolerate nulls.
@@ -711,7 +706,7 @@ pfds_FingerTree* FingerTree_fromDigit(
 
 bool FingerTree_popBack(
         pfds_FingerTree** init, pfds_object** last,
-        pfds_catenablevtable* cat, pfds_measure mm,
+        const pfds_catenablevtable* cat, pfds_measure mm,
         pfds_FingerTree* self) {
     switch (self->tag) {
         case FINGERTREE_EMPTY:
@@ -744,7 +739,7 @@ bool FingerTree_popBack(
 
 
 pfds_FingerTree* FingerTree_deepR(
-        pfds_catenablevtable* cat, pfds_measure mm,
+        const pfds_catenablevtable* cat, pfds_measure mm,
         Digit* /* a */ prefix,
         pfds_FingerTree* /* Node v a */ m,
         Digit* /* Maybe (Digit a) */ suffix) {
@@ -768,7 +763,7 @@ pfds_FingerTree* FingerTree_deepR(
 #define NODEAPP3_VIEW(xs, n, ts, ys, idx) ARRAYVIEW_3(xs->tag, xs->elements, n, ts, ys->tag, ys->elements, idx)
 
 pfds_FingerTree* pfds_FingerTree_app3(
-        pfds_catenablevtable* cat, pfds_measure mm,
+        const pfds_catenablevtable* cat, pfds_measure mm,
         pfds_FingerTree* xs,
         size_t n, pfds_object** ts,
         pfds_FingerTree* ys) {
@@ -898,7 +893,7 @@ pfds_FingerTree* pfds_FingerTree_app3(
  *
  */
 void Digit_split(Digit** init, pfds_object** pivot, Digit** tail,
-        pfds_catenablevtable * cat, pfds_measure mm,
+        const pfds_catenablevtable * cat, pfds_measure mm,
         bool (*p)(void*, pfds_object*), void* ud,
         pfds_object* i,
         Digit* self) {
@@ -950,7 +945,7 @@ void FingerTree_splitTree(
         pfds_FingerTree** init,
         pfds_object** pivot,
         pfds_FingerTree** tail,
-        pfds_catenablevtable* cat, pfds_measure mm,
+        const pfds_catenablevtable* cat, pfds_measure mm,
         bool (*p)(void*, pfds_object*), void* ud,
         pfds_object* i,
         pfds_FingerTree* self
@@ -1087,7 +1082,7 @@ bool pfds_FingerTree_split(
         pfds_FingerTree** init,
         pfds_object** pivot,
         pfds_FingerTree** tail,
-        pfds_catenablevtable* cat, pfds_measure mm,
+        const pfds_catenablevtable* cat, pfds_measure mm,
         bool (*p)(void*, pfds_object*), void* ud,
         pfds_FingerTree* self) {
     pfds_object* mmTree = pfds_FingerTree_measure(cat, mm, self);

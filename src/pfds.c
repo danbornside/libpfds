@@ -526,3 +526,35 @@ void* bsearch_alt(const void *userData, const void *base, size_t n, size_t size,
     return (void *) (base + ub * size);
 
 }
+
+pfds_ordering pfds_sequence_defaultCmp (pfds_sequence* l, pfds_sequence* r) {
+    pfds_retain(l);
+    pfds_retain(r);
+
+    pfds_object *lHead, *rHead;
+
+    bool lMore = pfds_sequence_popFront(&lHead, &l, l);
+    bool rMore = pfds_sequence_popFront(&rHead, &r, r);
+    while (lMore && rMore) {
+        pfds_ordering res = pfds_cmp(lHead, rHead);
+        pfds_release(lHead); pfds_release(rHead);
+        if (res != PFDS_EQ) {
+            pfds_release(l);
+            pfds_release(r);
+            return res;
+        }
+        lMore = pfds_sequence_popFront(&lHead, &l, l);
+        rMore = pfds_sequence_popFront(&rHead, &r, r);
+    }
+    if (lMore) {
+        pfds_release(lHead);
+        pfds_release(l);
+        return PFDS_GT;
+    } else if (rMore) {
+        pfds_release(rHead);
+        pfds_release(r);
+        return PFDS_LT;
+    } else {
+        return PFDS_EQ;
+    }
+}

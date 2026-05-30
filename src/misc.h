@@ -14,6 +14,11 @@
  * libpfds. If not, see <https://www.gnu.org/licenses/>.
  */
 
+#ifndef PFDS_MISC_HEADER_INCLUDED
+#define PFDS_MISC_HEADER_INCLUDED
+
+#include <assert.h>
+#include <stdlib.h>
 
 /* miscelaneious macros used throughout the implementation of pfds that are inappropriate to install globally */
 
@@ -52,3 +57,5 @@
  * @returns a pointer to the first element for which pred is true.
  */
 void* bsearch_alt(const void *userData, const void *base, size_t n, size_t size, bool (*pred)(const void*, const void*));
+
+#endif

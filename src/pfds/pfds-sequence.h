@@ -275,6 +275,17 @@ pfds_object* pfds_sequence_defaultBack(pfds_sequence* self);
  */
 int pfds_sequence_defaultDebugfputs (FILE* stream, pfds_sequence* self);
 
+/** convenience default implementation of cmp based on popFront
+ * \protected \memberof pfds_sequence
+ *
+ * \param l sequence.  must implement popFront
+ * \param r sequence.  must implement popFront
+ * \invariant borrow(l) borrow(r)
+ *
+ */
+pfds_ordering pfds_sequence_defaultCmp (pfds_sequence* l, pfds_sequence* r);
+
+
 /** convenience default implementation of reduceLeft based on popFront
  *
  * \param fn

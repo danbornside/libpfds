@@ -1000,9 +1000,9 @@ bool prop_sequence_pushPopFront(const pfds_objectvtable *vtable, pfds_object* x,
 
     // ys, x, xs, xsArray
     pfds_object* y;
-    bool result = pfds_sequence_popFront(&y, &ys, ys)
-        && pfds_cmp(x, y) == PFDS_EQ
-        && pfds_cmp(xs, ys) == PFDS_EQ;
+    bool result = pfds_sequence_popFront(&y, &ys, ys);
+    result = result && pfds_cmp(x, y) == PFDS_EQ;
+    result = result && pfds_cmp(xs, ys) == PFDS_EQ;
     // y, ys, x, xs, xsArray
 
     pfds_release(xs);
